@@ -1,6 +1,9 @@
 # mari-juego
 
-Juego "Aventura en Pareja": trampas, monstruos y rompecabezas.
-Multijugador por internet con PeerJS.
+Colección de juegos para jugar en el navegador (sin instalar nada).
 
-Abre `juego mari.html` en el navegador para jugar.
+- **Menú principal:** `index.html` — elige el juego.
+- **Juego 1:** `juego1.html` — aventura cooperativa por niveles (trampas, monstruos y rompecabezas). Multijugador por internet con PeerJS.
+- **Juego 2 · Parkour Versus:** `juego2.html` — versus 1 vs 1 estilo *Ultimate Chicken Horse*: colocáis objetos al azar para armar un parkour y competís por llegar a la meta. Modos: online (2 dispositivos) y "mismo PC" (2 jugadores en un teclado).
+
+Jugar online: https://alvaro2005cuenca-cpu.github.io/mari-juego/

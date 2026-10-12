@@ -1,0 +1,3364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Juego en progreso — escucho recomendaciones de María</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        love: {
+                            50: '#fff0f3',
+                            100: '#ffe3e8',
+                            200: '#fccad4',
+                            300: '#faa2b5',
+                            400: '#f66d8e',
+                            500: '#ed3865',
+                            600: '#db1d4f',
+                            700: '#b8123c',
+                        },
+                        p1Color: '#f43f5e',
+                        p2Color: '#0284c7',
+                        goldColor: '#eab308'
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- PeerJS (WebRTC) para multijugador por Internet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #1e1b2e 0%, #2a1b3d 50%, #1a0f2e 100%);
+            color: #f3f4f6;
+            min-height: 100vh;
+            user-select: none;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .font-display {
+            font-family: 'Fredoka', cursive;
+        }
+
+        .glass-panel {
+            background: rgba(30, 27, 46, 0.85);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .glass-pill {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-action {
+            background: linear-gradient(135deg, #f66d8e 0%, #db1d4f 100%);
+            box-shadow: 0 4px 15px rgba(219, 29, 79, 0.4);
+            transition: all 0.2s ease;
+        }
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(219, 29, 79, 0.6);
+        }
+        .btn-action:active {
+            transform: translateY(1px);
+        }
+
+        .touch-btn {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .touch-btn:active {
+            transform: scale(0.92);
+            filter: brightness(1.2);
+        }
+
+        #bg-canvas, #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+        }
+        #bg-canvas { z-index: 0; }
+        #confetti-canvas { z-index: 99; }
+
+        canvas#game-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen pb-6 flex flex-col items-center">
+
+    <canvas id="bg-canvas"></canvas>
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="relative z-10 w-full max-w-5xl px-3 sm:px-4 pt-3 flex flex-col items-center">
+        
+        <!-- Header Bar -->
+        <header class="w-full glass-panel rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('menu')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-500 via-purple-600 to-sky-500 flex items-center justify-center text-white text-xl shadow-lg">
+                    <i class="fa-solid fa-gamepad"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-rose-300 leading-none">Juego en progreso</h1>
+                    <p class="text-[10px] text-sky-400 font-extrabold tracking-widest uppercase">Escucho recomendaciones de María</p>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleBGM()" id="bgm-btn" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-rose-300 flex items-center justify-center text-xs transition" title="Música BGM">
+                    <i class="fa-solid fa-music"></i>
+                </button>
+                <button onclick="toggleAudio()" id="audio-btn" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-rose-300 flex items-center justify-center text-xs transition" title="Efectos de Sonido">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="switchView('customizer')" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-sky-300 flex items-center justify-center text-xs transition" title="Personalizar Personajes y Preguntas">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+                <button onclick="switchView('levels')" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-extrabold text-xs shadow hover:bg-rose-500 transition">
+                    <i class="fa-solid fa-map-location-dot mr-1"></i> Niveles
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Views Screen Area -->
+        <main id="app-container" class="w-full relative">
+
+            <section id="view-menu" class="glass-panel rounded-3xl p-6 sm:p-10 text-center flex flex-col items-center">
+                <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-rose-500 via-purple-500 to-sky-500 text-white flex items-center justify-center text-4xl mb-4 shadow-2xl animate-bounce">
+                    <i class="fa-solid fa-gamepad"></i>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-pink-300 to-sky-400 mb-6">
+                    Juego en progreso y escucho recomendaciones de María
+                </h2>
+
+                <!-- Players Info Cards -->
+                <div class="flex flex-wrap justify-center gap-4 mb-8 w-full max-w-md">
+                    <!-- Player 1 Badge -->
+                    <div class="flex-1 glass-pill p-3 rounded-2xl border-2 border-rose-500/50 flex items-center gap-3">
+                        <span id="menu-p1-avatar" class="text-3xl">👩‍❤️‍👨</span>
+                        <div class="text-left">
+                            <span class="text-[10px] uppercase font-extrabold text-rose-400 block">Jugador 1 (Rosa)</span>
+                            <h4 id="menu-p1-name" class="font-extrabold text-white text-sm">Jugador 1</h4>
+                            <span class="text-[9px] text-gray-400">Mover: A/D · Salto: W (x2 = Doble Salto) · Lazo: F</span>
+                        </div>
+                    </div>
+                    <!-- Player 2 Badge -->
+                    <div class="flex-1 glass-pill p-3 rounded-2xl border-2 border-sky-500/50 flex items-center gap-3">
+                        <span id="menu-p2-avatar" class="text-3xl">👨‍❤️‍💋‍👨</span>
+                        <div class="text-left">
+                            <span class="text-[10px] uppercase font-extrabold text-sky-400 block">Jugador 2 (Azul)</span>
+                            <h4 id="menu-p2-name" class="font-extrabold text-white text-sm">Jugador 2</h4>
+                            <span class="text-[9px] text-gray-400">Mover: ← → · Salto: ↑ · Escudo: L · Plataforma: P</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+                    <button onclick="startGame(1)" class="flex-1 btn-action text-white font-extrabold py-3.5 px-6 rounded-2xl text-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play"></i> Iniciar Aventura
+                    </button>
+                    <button onclick="switchView('levels')" class="flex-1 glass-pill hover:bg-white/20 text-rose-300 font-extrabold py-3.5 px-6 rounded-2xl text-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-list-check"></i> Selección de Nivel
+                    </button>
+                </div>
+
+                <!-- Secondary Action Buttons: Galería + Online -->
+                <div class="flex flex-col sm:flex-row gap-3 w-full max-w-md mt-3">
+                    <button onclick="switchView('gallery')" class="flex-1 glass-pill hover:bg-white/20 text-pink-300 font-extrabold py-3 px-6 rounded-2xl text-sm transition flex items-center justify-center gap-2 border border-pink-500/30">
+                        <i class="fa-solid fa-images"></i> Galería de Recuerdos
+                    </button>
+                    <button onclick="openOnlineModal()" class="flex-1 glass-pill hover:bg-white/20 text-emerald-300 font-extrabold py-3 px-6 rounded-2xl text-sm transition flex items-center justify-center gap-2 border border-emerald-500/30">
+                        <i class="fa-solid fa-wifi"></i> Jugar Online (2 PCs)
+                    </button>
+                </div>
+
+                <!-- Live status (score / gamepads / online) -->
+                <div class="mt-5 flex flex-wrap items-center justify-center gap-2 text-[11px] font-bold">
+                    <span class="glass-pill px-3 py-1.5 rounded-xl text-yellow-300"><i class="fa-solid fa-coins mr-1"></i> Puntaje: <span id="menu-score">0</span></span>
+                    <span class="glass-pill px-3 py-1.5 rounded-xl text-pink-300"><i class="fa-solid fa-heart mr-1"></i> Recuerdos: <span id="menu-mem-count">0</span>/<span id="menu-mem-total">6</span></span>
+                    <span id="menu-gamepad-status" class="glass-pill px-3 py-1.5 rounded-xl text-gray-400"><i class="fa-solid fa-gamepad mr-1"></i> Sin mandos</span>
+                </div>
+
+                <div class="mt-6 text-[11px] text-rose-300/80 font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-yellow-400"></i>
+                    <span>Rosa pasa barreras ROSAS, Azul pasa barreras AZULES · Salten ENCIMA de los enemigos para aplastarlos · Los láseres MATAN: crúcenlos con el Escudo (P2: tecla L) · Cajas: Rosa→P1, Azul→P2, Dorada→ambos</span>
+                </div>
+            </section>
+
+            <section id="view-levels" class="hidden glass-panel rounded-3xl p-6 max-w-3xl mx-auto">
+                <div class="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
+                    <button onclick="switchView('menu')" class="text-xs font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left"></i> Menú Principal
+                    </button>
+                    <h3 class="text-lg font-extrabold text-rose-300">Mapa de Niveles</h3>
+                </div>
+
+                <div id="levels-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <!-- Rendered dynamically -->
+                </div>
+            </section>
+
+            <section id="view-customizer" class="hidden glass-panel rounded-3xl p-6 max-w-2xl mx-auto">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                    <button onclick="switchView('menu')" class="text-xs font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left"></i> Menú Principal
+                    </button>
+                    <h3 class="text-base font-bold text-rose-300"><i class="fa-solid fa-sliders"></i> Ajustes & Preguntas</h3>
+                </div>
+
+                <!-- Tabs Navigation -->
+                <div class="flex rounded-xl bg-white/5 p-1 mb-5 text-xs font-bold">
+                    <button id="custom-tab-btn-players" onclick="switchCustomTab('players')" class="flex-1 py-2 rounded-lg bg-rose-600 text-white transition">Personajes</button>
+                    <button id="custom-tab-btn-questions" onclick="switchCustomTab('questions')" class="flex-1 py-2 rounded-lg text-gray-400 hover:text-white transition">Editor de Preguntas</button>
+                </div>
+
+                <!-- Players Configuration -->
+                <div id="custom-sec-players" class="space-y-4">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-rose-500/30">
+                        <label class="block text-xs font-bold text-rose-400 mb-1">Jugador 1 (Rosa - WASD):</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="edit-p1-name" class="w-full px-3 py-2 text-xs rounded-xl bg-black/40 border border-white/20 text-white focus:outline-none focus:border-rose-500" value="Jugador 1">
+                            <select id="edit-p1-avatar" class="px-3 py-2 text-xs rounded-xl bg-gray-800 border border-white/20 text-white">
+                                <option value="👩‍❤️‍👨">👩‍❤️‍👨 Exploradora</option>
+                                <option value="🐱">🐱 Gatita</option>
+                                <option value="👑">👑 Reina</option>
+                                <option value="💖">💖 Corazón</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/5 p-4 rounded-2xl border border-sky-500/30">
+                        <label class="block text-xs font-bold text-sky-400 mb-1">Jugador 2 (Azul - Flechas):</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="edit-p2-name" class="w-full px-3 py-2 text-xs rounded-xl bg-black/40 border border-white/20 text-white focus:outline-none focus:border-sky-500" value="Jugador 2">
+                            <select id="edit-p2-avatar" class="px-3 py-2 text-xs rounded-xl bg-gray-800 border border-white/20 text-white">
+                                <option value="👨‍❤️‍💋‍👨">👨‍❤️‍💋‍👨 Explorador</option>
+                                <option value="🐶">🐶 Perrito</option>
+                                <option value="🤴">🤴 Príncipe</option>
+                                <option value="⭐">⭐ Estrella</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button onclick="savePlayerSettings()" class="w-full btn-action text-white font-bold py-2.5 rounded-xl text-xs shadow-md">
+                        Guardar Ajustes de Pareja
+                    </button>
+                </div>
+
+                <!-- Question Editor Section -->
+                <div id="custom-sec-questions" class="hidden space-y-4">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/10">
+                        <p class="text-xs font-bold text-rose-300 mb-2">Añadir Nueva Pregunta para las Puertas:</p>
+                        <input type="text" id="new-q-text" placeholder="Escribe tu pregunta romántica..." class="w-full px-3 py-2 text-xs rounded-xl bg-black/40 border border-white/20 text-white mb-2">
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <input type="text" id="new-q-opt1" placeholder="Opción A" class="px-3 py-1.5 text-xs rounded-lg bg-black/40 border border-white/10 text-white">
+                            <input type="text" id="new-q-opt2" placeholder="Opción B" class="px-3 py-1.5 text-xs rounded-lg bg-black/40 border border-white/10 text-white">
+                            <input type="text" id="new-q-opt3" placeholder="Opción C" class="px-3 py-1.5 text-xs rounded-lg bg-black/40 border border-white/10 text-white">
+                            <input type="text" id="new-q-opt4" placeholder="Opción D" class="px-3 py-1.5 text-xs rounded-lg bg-black/40 border border-white/10 text-white">
+                        </div>
+                        <button onclick="addCustomQuestion()" class="btn-action text-white font-bold px-4 py-2 rounded-xl text-xs">
+                            <i class="fa-solid fa-plus mr-1"></i> Agregar Pregunta
+                        </button>
+                    </div>
+
+                    <div id="custom-questions-list" class="max-h-52 overflow-y-auto space-y-2 pr-1">
+                        <!-- Questions dynamically listed -->
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-game" class="hidden flex flex-col items-center w-full">
+                
+                <!-- Game Header HUD -->
+                <div class="w-full glass-panel rounded-2xl px-4 py-2 mb-2 flex items-center justify-between text-xs font-bold">
+                    <div class="flex items-center gap-3">
+                        <span id="game-level-title" class="text-rose-300 font-extrabold text-sm sm:text-base">Nivel 1</span>
+                        <!-- Shared Lives Indicator -->
+                        <div class="flex items-center gap-1 bg-red-900/40 px-2.5 py-1 rounded-xl border border-red-500/30 text-rose-400">
+                            <i class="fa-solid fa-heart text-xs"></i>
+                            <span id="hud-lives-count" class="font-extrabold text-sm">5</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <span id="hud-online-badge" class="hidden items-center gap-1 bg-emerald-900/40 px-2 py-1 rounded-xl border border-emerald-500/30 text-emerald-300 text-[10px]"><i class="fa-solid fa-wifi"></i> <span id="hud-online-role">Online</span></span>
+                        <span id="hud-gamepad-badge" class="hidden items-center gap-1 bg-indigo-900/40 px-2 py-1 rounded-xl border border-indigo-500/30 text-indigo-300 text-[10px]"><i class="fa-solid fa-gamepad"></i> Mando</span>
+                        <div class="flex items-center gap-1 text-emerald-300 font-extrabold text-sm" title="Puntaje">
+                            <i class="fa-solid fa-coins"></i>
+                            <span id="game-score-count">0</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-pink-300 font-extrabold text-sm" title="Recuerdos en este nivel">
+                            <i class="fa-solid fa-heart"></i>
+                            <span id="game-mem-count">0/0</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-yellow-400 font-extrabold text-sm">
+                            <i class="fa-solid fa-star"></i>
+                            <span id="game-stars-count">0/3</span>
+                        </div>
+                        <button onclick="togglePauseModal()" class="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-rose-300 font-bold">
+                            <i class="fa-solid fa-pause"></i> Pausa
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ability Cooldown Bars -->
+                <div class="w-full max-w-4xl grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                    <div class="glass-pill rounded-xl px-2.5 py-1.5 border border-rose-500/30" id="ab-p1dj">
+                        <div class="flex items-center justify-between text-[10px] font-extrabold text-rose-300"><span><i class="fa-solid fa-angles-up mr-1"></i>Doble Salto</span><span class="ab-key">P1</span></div>
+                        <div class="h-1.5 mt-1 rounded-full bg-black/40 overflow-hidden"><div class="ab-fill h-full bg-rose-500 rounded-full" style="width:100%"></div></div>
+                    </div>
+                    <div class="glass-pill rounded-xl px-2.5 py-1.5 border border-rose-500/30" id="ab-p1lasso">
+                        <div class="flex items-center justify-between text-[10px] font-extrabold text-rose-300"><span><i class="fa-solid fa-link mr-1"></i>Lazo (F)</span><span class="ab-key">P1</span></div>
+                        <div class="h-1.5 mt-1 rounded-full bg-black/40 overflow-hidden"><div class="ab-fill h-full bg-rose-500 rounded-full" style="width:100%"></div></div>
+                    </div>
+                    <div class="glass-pill rounded-xl px-2.5 py-1.5 border border-sky-500/30" id="ab-p2shield">
+                        <div class="flex items-center justify-between text-[10px] font-extrabold text-sky-300"><span><i class="fa-solid fa-shield-halved mr-1"></i>Escudo (L)</span><span class="ab-key">P2</span></div>
+                        <div class="h-1.5 mt-1 rounded-full bg-black/40 overflow-hidden"><div class="ab-fill h-full bg-sky-500 rounded-full" style="width:100%"></div></div>
+                    </div>
+                    <div class="glass-pill rounded-xl px-2.5 py-1.5 border border-sky-500/30" id="ab-p2plat">
+                        <div class="flex items-center justify-between text-[10px] font-extrabold text-sky-300"><span><i class="fa-solid fa-square-plus mr-1"></i>Plataforma (P)</span><span class="ab-key">P2</span></div>
+                        <div class="h-1.5 mt-1 rounded-full bg-black/40 overflow-hidden"><div class="ab-fill h-full bg-sky-500 rounded-full" style="width:100%"></div></div>
+                    </div>
+                </div>
+
+                <!-- Objetivo cooperativo del nivel -->
+                <div class="w-full max-w-4xl mb-2 flex items-center justify-center gap-2 glass-pill rounded-xl px-3 py-1.5 border border-emerald-500/30">
+                    <i class="fa-solid fa-bullseye text-emerald-300 text-xs"></i>
+                    <span class="text-[11px] font-bold text-emerald-200">Objetivo en equipo:</span>
+                    <span id="hud-objective" class="text-[11px] font-extrabold text-white">Lleguen juntos al portal</span>
+                </div>
+
+                <!-- Main Game Canvas Container -->
+                <div class="relative w-full max-w-4xl aspect-[16/9] bg-slate-950 rounded-2xl shadow-2xl overflow-hidden border-2 border-white/20">
+                    <canvas id="game-canvas" class="w-full h-full block"></canvas>
+
+                    <!-- In-Game Notification Banner -->
+                    <div id="game-banner" class="hidden absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/95 text-rose-300 px-5 py-2.5 rounded-2xl border border-rose-500 shadow-2xl text-center text-xs font-extrabold animate-bounce">
+                        In-game message
+                    </div>
+                </div>
+
+                <!-- On-Screen Touch Controls Grid (For Mobile/Tablets) -->
+                <div class="w-full max-w-4xl mt-3 grid grid-cols-2 gap-3">
+                    <!-- Player 1 Touch Controller (Pink) -->
+                    <div class="glass-pill p-2 rounded-2xl border border-rose-500/40 flex items-center justify-between">
+                        <div class="flex items-center gap-1">
+                            <button id="btn-p1-left" class="touch-btn w-11 h-11 rounded-xl bg-rose-600 text-white font-extrabold text-base flex items-center justify-center shadow">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <button id="btn-p1-right" class="touch-btn w-11 h-11 rounded-xl bg-rose-600 text-white font-extrabold text-base flex items-center justify-center shadow">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button id="btn-p1-lasso" class="touch-btn w-10 h-11 rounded-xl bg-rose-900 text-white font-bold text-base flex items-center justify-center shadow" title="Lazo"><i class="fa-solid fa-link"></i></button>
+                            <button id="btn-p1-jump" class="touch-btn w-12 h-11 rounded-xl bg-gradient-to-tr from-rose-500 to-pink-600 text-white font-extrabold text-xs flex items-center justify-center shadow">
+                                SALTO
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Player 2 Touch Controller (Blue) -->
+                    <div class="glass-pill p-2 rounded-2xl border border-sky-500/40 flex items-center justify-between">
+                        <div class="flex items-center gap-1">
+                            <button id="btn-p2-jump" class="touch-btn w-12 h-11 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white font-extrabold text-xs flex items-center justify-center shadow">
+                                SALTO
+                            </button>
+                            <button id="btn-p2-shield" class="touch-btn w-10 h-11 rounded-xl bg-sky-900 text-white font-bold text-base flex items-center justify-center shadow" title="Escudo"><i class="fa-solid fa-shield-halved"></i></button>
+                            <button id="btn-p2-plat" class="touch-btn w-10 h-11 rounded-xl bg-sky-950 text-white font-bold text-base flex items-center justify-center shadow" title="Plataforma"><i class="fa-solid fa-square-plus"></i></button>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button id="btn-p2-left" class="touch-btn w-11 h-11 rounded-xl bg-sky-600 text-white font-extrabold text-base flex items-center justify-center shadow">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <button id="btn-p2-right" class="touch-btn w-11 h-11 rounded-xl bg-sky-600 text-white font-extrabold text-base flex items-center justify-center shadow">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <section id="view-victory" class="hidden glass-panel rounded-3xl p-6 sm:p-10 max-w-2xl mx-auto text-center border-2 border-rose-500/50 shadow-2xl">
+                <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-yellow-400 to-amber-500 text-white flex items-center justify-center text-4xl mx-auto mb-3 shadow-xl">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2 class="text-3xl font-extrabold text-rose-300 mb-1">¡Victoria Total en Pareja!</h2>
+                <p class="text-xs text-gray-300 mb-6">Superaron todas las trampas, monstruos y rompecabezas demostrando un amor y trabajo en equipo invencible.</p>
+
+                <!-- Certificate Card -->
+                <div class="bg-gradient-to-b from-slate-900 to-slate-950 p-6 rounded-2xl border-2 border-dashed border-rose-400 mb-6 text-center relative overflow-hidden shadow-inner">
+                    <p class="text-[10px] uppercase font-extrabold tracking-widest text-rose-400 mb-2">CERTIFICADO OFICIAL DE COMPLICIDAD</p>
+                    <h3 class="text-2xl font-extrabold text-white mb-3" id="cert-couple-names">Jugador 1 & Jugador 2</h3>
+                    
+                    <div class="flex justify-center items-center gap-1 text-yellow-400 text-2xl mb-4">
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+
+                    <p class="text-xs text-gray-300 leading-relaxed italic max-w-md mx-auto">
+                        "Por vencer juntos cada sierra, esquivar láseres, resolver los acertijos de cajas y responder con el corazón en cada puerta de amor."
+                    </p>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button onclick="switchView('levels')" class="btn-action text-white font-bold py-3 px-8 rounded-2xl text-xs shadow-md">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> Volver a Jugar
+                    </button>
+                    <button onclick="switchView('menu')" class="glass-pill hover:bg-white/20 text-rose-300 font-bold py-3 px-8 rounded-2xl text-xs">
+                        Menú Principal
+                    </button>
+                </div>
+            </section>
+
+            <!-- GALLERY: Galería de Recuerdos -->
+            <section id="view-gallery" class="hidden glass-panel rounded-3xl p-6 max-w-3xl mx-auto">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                    <button onclick="switchView('menu')" class="text-xs font-bold text-rose-400 hover:text-rose-300 flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left"></i> Menú Principal
+                    </button>
+                    <h3 class="text-base font-bold text-pink-300"><i class="fa-solid fa-images"></i> Galería de Recuerdos</h3>
+                </div>
+                <p class="text-xs text-gray-300 mb-4 text-center">Encuentren los <b class="text-pink-300">fragmentos de fotos y cartas de amor</b> escondidos en cada nivel para desbloquear mensajes especiales. <span id="gallery-progress" class="text-pink-200 font-bold"></span></p>
+                <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+                <div id="gallery-complete" class="hidden mt-6 bg-gradient-to-b from-rose-900/40 to-slate-950 p-5 rounded-2xl border-2 border-dashed border-pink-400 text-center">
+                    <div class="text-4xl mb-2">💞</div>
+                    <h4 class="text-pink-300 font-extrabold text-lg mb-1">¡Álbum Completo!</h4>
+                    <p class="text-xs text-gray-200 italic max-w-md mx-auto">Juntaron todos los recuerdos. Cada trampa esquivada y cada puzle resuelto fue una excusa para estar más cerca. Gracias por jugar nuestra historia, una pieza a la vez. ❤️</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="quiz-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-6 max-w-lg w-full text-center shadow-2xl border border-rose-500/40">
+            <div class="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-rose-500/40">
+                <i class="fa-solid fa-door-open"></i>
+            </div>
+            <span class="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-extrabold uppercase tracking-wider">Puerta de Sintonía</span>
+            
+            <h3 id="quiz-modal-q" class="text-base sm:text-lg font-extrabold text-white my-3">
+                ¿Cuál es el lugar preferido de ambos?
+            </h3>
+
+            <!-- Turn Banner -->
+            <div id="quiz-modal-turn" class="bg-rose-600 text-white text-xs font-bold p-2 rounded-xl mb-4">
+                Turno de: Jugador 1
+            </div>
+
+            <div id="quiz-modal-options" class="grid grid-cols-1 gap-2 mb-4">
+                <!-- Dynamic choices -->
+            </div>
+        </div>
+    </div>
+
+    <div id="pause-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl">
+            <h3 class="text-2xl font-extrabold text-rose-300 mb-4"><i class="fa-solid fa-pause"></i> En Pausa</h3>
+            <div class="space-y-3">
+                <button onclick="togglePauseModal()" class="w-full btn-action text-white font-bold py-2.5 rounded-xl text-xs">
+                    Reanudar
+                </button>
+                <button onclick="restartCurrentLevel()" class="w-full bg-white/10 hover:bg-white/20 text-rose-300 font-bold py-2.5 rounded-xl text-xs">
+                    Reiniciar Nivel
+                </button>
+                <button onclick="togglePauseModal(); switchView('levels');" class="w-full bg-white/5 hover:bg-white/10 text-gray-400 font-bold py-2.5 rounded-xl text-xs">
+                    Salir al Mapa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ONLINE MULTIPLAYER MODAL -->
+    <div id="online-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-6 max-w-md w-full text-center shadow-2xl border border-emerald-500/40">
+            <div class="flex items-center justify-between mb-2">
+                <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider">Multijugador por Internet</span>
+                <button onclick="closeOnlineModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-2xl mx-auto my-3 border border-emerald-500/40">
+                <i class="fa-solid fa-tower-broadcast"></i>
+            </div>
+            <p class="text-xs text-gray-300 mb-4">Jueguen desde <b>dos computadoras distintas</b>. El Anfitrión controla a <b class="text-rose-300">Jugador 1 (Rosa)</b> y quien se une controla a <b class="text-sky-300">Jugador 2 (Azul)</b>.</p>
+
+            <div id="online-choose" class="space-y-3">
+                <button onclick="hostRoom()" class="w-full btn-action text-white font-extrabold py-3 rounded-xl text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-crown"></i> Crear Sala (Anfitrión)</button>
+                <div class="flex items-center gap-2">
+                    <input id="online-join-code" type="text" placeholder="Código de sala (ej. amor-1234)" class="flex-1 px-3 py-2.5 text-xs rounded-xl bg-black/40 border border-white/20 text-white focus:outline-none focus:border-emerald-500">
+                    <button onclick="joinRoom()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs">Unirse</button>
+                </div>
+            </div>
+
+            <div id="online-status" class="hidden mt-4 bg-black/40 rounded-2xl p-4 border border-white/10">
+                <div id="online-status-text" class="text-xs font-bold text-emerald-300 mb-2">Conectando…</div>
+                <div id="online-room-box" class="hidden">
+                    <p class="text-[10px] text-gray-400 uppercase font-extrabold mb-1">Comparte este código o enlace con tu pareja:</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input id="online-room-code" type="text" readonly class="flex-1 px-3 py-2 text-sm font-mono font-bold rounded-xl bg-black/60 border border-emerald-500/40 text-emerald-300 text-center">
+                        <button onclick="copyText('online-room-code')" class="bg-white/10 hover:bg-white/20 text-emerald-300 px-3 py-2 rounded-xl text-xs"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="online-room-link" type="text" readonly class="flex-1 px-3 py-1.5 text-[10px] rounded-xl bg-black/60 border border-white/10 text-gray-300">
+                        <button onclick="copyText('online-room-link')" class="bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-xl text-xs"><i class="fa-solid fa-link"></i></button>
+                    </div>
+                </div>
+                <div id="online-spinner" class="mt-3 text-emerald-400"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+                <button onclick="leaveOnline()" class="mt-3 w-full bg-white/5 hover:bg-white/10 text-gray-400 font-bold py-2 rounded-xl text-xs">Cancelar / Desconectar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let isMuted = false;
+        let isBGMMuted = true;
+        let bgmOsc = null;
+        let bgmTimer = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(freq, duration, type = 'sine', startVol = 0.15) {
+            if (isMuted) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(startVol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function sndJump() { playSound(380, 0.1, 'square', 0.1); }
+        function sndPush() { playSound(120, 0.08, 'triangle', 0.15); }
+        function sndSwitch() { playSound(280, 0.08, 'sawtooth', 0.15); }
+        function sndStar() { 
+            playSound(523.25, 0.1, 'sine', 0.15); 
+            setTimeout(() => playSound(659.25, 0.12, 'sine', 0.15), 70);
+        }
+        function sndSquish() {
+            playSound(150, 0.15, 'sawtooth', 0.2);
+            setTimeout(() => playSound(80, 0.15, 'sine', 0.2), 50);
+        }
+        function sndHit() { playSound(100, 0.3, 'sawtooth', 0.25); }
+        function sndUnlock() {
+            playSound(440, 0.1, 'sine', 0.15);
+            setTimeout(() => playSound(554.37, 0.1, 'sine', 0.15), 90);
+            setTimeout(() => playSound(659.25, 0.2, 'sine', 0.2), 180);
+        }
+        function sndVictory() {
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((n, i) => setTimeout(() => playSound(n, 0.25, 'sine', 0.2), i * 130));
+        }
+
+        function toggleAudio() {
+            isMuted = !isMuted;
+            document.getElementById('audio-btn').innerHTML = isMuted 
+                ? '<i class="fa-solid fa-volume-xmark text-gray-500"></i>' 
+                : '<i class="fa-solid fa-volume-high"></i>';
+        }
+
+        function toggleBGM() {
+            isBGMMuted = !isBGMMuted;
+            document.getElementById('bgm-btn').innerHTML = isBGMMuted 
+                ? '<i class="fa-solid fa-music text-gray-500"></i>' 
+                : '<i class="fa-solid fa-music text-rose-400"></i>';
+            if (!isBGMMuted) playBGMLoop();
+        }
+
+        function playBGMLoop() {
+            if (isBGMMuted) return;
+            const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
+            let idx = 0;
+            if (bgmTimer) clearInterval(bgmTimer);
+            bgmTimer = setInterval(() => {
+                if (!isBGMMuted) {
+                    playSound(melody[idx], 0.18, 'sine', 0.03);
+                    idx = (idx + 1) % melody.length;
+                } else clearInterval(bgmTimer);
+            }, 300);
+        }
+
+        const DEFAULT_QUESTIONS = [
+            {
+                q: "¿Qué actividad disfrutan más hacer juntos?",
+                options: ["Ver películas/series en pijama", "Viajar y explorar lugares nuevos", "Cocinar algo rico en pareja", "Conversar durante horas"]
+            },
+            {
+                q: "¿Cuál es el superpoder secreto de tu pareja?",
+                options: ["Hacerme reír cuando estoy triste", "Dar los mejores abrazos", "Su paciencia infinita", "Su intuición y ternura"]
+            },
+            {
+                q: "Si pudieran hacer un viaje mañana mismo, ¿a dónde irían?",
+                options: ["Una playa paradisíaca", "Una cabaña en la montaña", "Una ciudad romántica", "Un parque de atracciones"]
+            }
+        ];
+
+        // ---- Save system (localStorage) ----
+        const SAVE = { stars:'lq_stars_v2', q:'lq_questions_v2', score:'lq_score_v3', unlocked:'lq_unlocked_v3', mem:'lq_memories_v3' };
+        function safeGet(key){ try { return localStorage.getItem(key); } catch(e){ return null; } }
+        function safeSet(key, val){ try { localStorage.setItem(key, val); } catch(e){} }
+        function safeParse(key, fallback){ try { const v = JSON.parse(safeGet(key)); return v==null ? fallback : v; } catch(e){ return fallback; } }
+
+        let _savedStars = safeParse(SAVE.stars, [0,0,0,0,0,0]);
+        if (!Array.isArray(_savedStars)) _savedStars = [0,0,0,0,0,0];
+        while (_savedStars.length < 6) _savedStars.push(0);
+
+        let gameState = {
+            players: [
+                { name: "Jugador 1", avatar: "👩‍❤️‍👨", color: "#f43f5e" },
+                { name: "Jugador 2", avatar: "👨‍❤️‍💋‍👨", color: "#0284c7" }
+            ],
+            questions: safeParse(SAVE.q, DEFAULT_QUESTIONS),
+            levelStars: _savedStars,
+            score: parseInt(safeGet(SAVE.score) || '0', 10) || 0,
+            unlockedLevel: parseInt(safeGet(SAVE.unlocked) || '0', 10) || 0,
+            memories: safeParse(SAVE.mem, []),   // array de ids de recuerdos coleccionados
+            currentLevelIdx: 0,
+            lives: 5,
+            isPaused: false
+        };
+
+        function saveProgress(){
+            try {
+                localStorage.setItem(SAVE.stars, JSON.stringify(gameState.levelStars));
+                localStorage.setItem(SAVE.score, String(gameState.score));
+                localStorage.setItem(SAVE.unlocked, String(gameState.unlockedLevel));
+                localStorage.setItem(SAVE.mem, JSON.stringify(gameState.memories));
+            } catch(e){}
+        }
+
+        // Grid: 25 columns x 14 rows (32px per tile = 800x448 canvas)
+        // Tiles: 0:Air, 1:Solid Wall, 2:Spikes, 3:Lava Pit
+        /* =====================================================================
+           NIVELES generados por COMPILADOR ASCII (edítalos como dibujos).
+           Lee la leyenda en compileLevel(). Cada nivel: 14 filas de alto.
+           ===================================================================== */
+/* =======================================================================
+   COMPILADOR DE NIVELES ASCII  →  formato del motor (LEVEL_MAPS)
+   Edita los niveles como dibujos. Leyenda:
+     espacio o .  aire            #  muro          ^  pinchos      ~  lava
+     X  portal de salida          1  spawn P1      2  spawn P2
+     *  estrella                  o  recuerdo (1 por nivel, id = memId)
+     S  slime (patrulla sola)     H  fantasma      W  sierra (patrulla aire)
+     B  caja ROSA (empuja P1)     b  caja AZUL (P2)   O  caja DORADA (ambos)
+     _  puente frágil (se cae)    >  cinta derecha    <  cinta izquierda
+     R  barrera ROSA (solo pasa P1)   A  barrera AZUL (solo pasa P2)
+     J  resorte / trampolín       L  láser (columna vertical, letal)
+     t  teletransporte (par por id en 'legend')
+   Puertas/placas y teletransportes con id se declaran en `legend`:
+     'p': {t:'switch', gate:0}   '=': {t:'gate', id:0}   mode:'hold' opcional
+   ======================================================================= */
+function compileLevel(def){
+    const rows = def.rows;
+    const H = rows.length;
+    const W = Math.max(...rows.map(r => r.length));
+    // normaliza a rectángulo (rellena con aire)
+    const G = rows.map(r => {
+        const a = r.split('');
+        while (a.length < W) a.push('.');
+        return a;
+    });
+    const legend = def.legend || {};
+    const at = (r,c) => (r<0||r>=H||c<0||c>=W) ? '#' : G[r][c];
+    const isSolidChar = ch => ch === '#';
+    const grid = [];
+    for (let r=0;r<H;r++){ grid.push(new Array(W).fill(0)); }
+
+    const out = {
+        name: def.name, objective: def.objective,
+        spawns:{p1:null,p2:null}, boxes:[], switches:[], gates:[], lasers:[],
+        saws:[], slimes:[], ghosts:[], stars:[], doors:[], conveyors:[],
+        springs:[], movers:def.movers||[], barriers:[], fallers:[], teleporters:[],
+        _mem:[]
+    };
+    if (def.boss) out.boss = def.boss;
+
+    const seen = {}; // para fusionar runs
+    for (let r=0;r<H;r++){
+      for (let c=0;c<W;c++){
+        const ch = G[r][c];
+        if (ch===' '||ch==='.') { grid[r][c]=0; continue; }
+        if (ch==='#'){ grid[r][c]=1; continue; }
+        if (ch==='^'){ grid[r][c]=2; continue; }
+        if (ch==='~'){ grid[r][c]=3; continue; }
+        if (ch==='X'){ grid[r][c]=7; continue; }
+        // --- actores: la celda queda en AIRE ---
+        grid[r][c]=0;
+        if (ch==='1'){ out.spawns.p1={c,r}; continue; }
+        if (ch==='2'){ out.spawns.p2={c,r}; continue; }
+        if (ch==='*'){ out.stars.push({c,r}); continue; }
+        if (ch==='o'){ out._mem.push({c,r,id:def.memId}); continue; }
+        if (ch==='B'){ out.boxes.push({c,r,color:'pink'}); continue; }
+        if (ch==='b'){ out.boxes.push({c,r,color:'blue'}); continue; }
+        if (ch==='O'){ out.boxes.push({c,r,color:'gold'}); continue; }
+        if (ch==='J'){ out.springs.push({c,r}); continue; }
+        if (ch==='H'){ out.ghosts.push({c,r,speed:def.ghostSpeed||0.9}); continue; }
+        if (ch==='_'){ out.fallers.push({c,r,w:1}); continue; }
+
+        // SLIME: el RUN de 'S' define la patrulla (dibuja SSSS = patrulla ancha)
+        if (ch==='S'){
+            const key='slm'+r+'_'+c; if (seen[key]) continue;
+            let hi=c; while (G[r][hi+1]==='S'){ hi++; seen['slm'+r+'_'+hi]=1; }
+            let lo=c;
+            if (hi===lo){ // una sola S: ensancha sobre piso contiguo, máx 3 por lado
+                let L=c, R=c, n=0;
+                while (n<3 && at(r,L-1)!=='#'&&at(r,L-1)!=='~'&&at(r,L-1)!=='^' && isSolidChar(at(r+1,L-1))){ L--; n++; }
+                n=0;
+                while (n<3 && at(r,R+1)!=='#'&&at(r,R+1)!=='~'&&at(r,R+1)!=='^' && isSolidChar(at(r+1,R+1))){ R++; n++; }
+                lo=L; hi=R;
+            }
+            if (hi<=lo) hi=lo+1;
+            out.slimes.push({minC:lo,maxC:hi,r,speed:def.slimeSpeed||1.3});
+            continue;
+        }
+        // SIERRA: el RUN de 'W' es su riel (dibuja WWWW = recorrido de 4)
+        if (ch==='W'){
+            const key='saw'+r+'_'+c; if (seen[key]) continue;
+            let hi=c; while (G[r][hi+1]==='W'){ hi++; seen['saw'+r+'_'+hi]=1; }
+            if (hi<=c) hi=c+2;
+            out.saws.push({minC:c,maxC:hi,r,speed:def.sawSpeed||2});
+            continue;
+        }
+        // CINTA: fusiona run horizontal del mismo símbolo
+        if (ch==='>'||ch==='<'){
+            const key='cv'+r+'_'+c;
+            if (seen[key]) continue;
+            let hi=c; while (G[r][hi+1]===ch){ hi++; seen['cv'+r+'_'+hi]=1; }
+            out.conveyors.push({c, r, w:(hi-c+1), dir: ch==='>'?1:-1, speed:def.convSpeed||1.6});
+            continue;
+        }
+        // BARRERA: fusiona run vertical del mismo símbolo
+        if (ch==='R'||ch==='A'){
+            const key='bar'+r+'_'+c;
+            if (seen[key]) continue;
+            let hi=r; while (at(hi+1,c)===ch){ hi++; seen['bar'+hi+'_'+c]=1; }
+            out.barriers.push({c, r, h:(hi-r+1), color: ch==='R'?'pink':'blue'});
+            continue;
+        }
+        // LÁSER: fusiona run vertical → columna de haz
+        if (ch==='L'){
+            const key='las'+r+'_'+c;
+            if (seen[key]) continue;
+            let hi=r; while (at(hi+1,c)==='L'){ hi++; seen['las'+hi+'_'+c]=1; }
+            out.lasers.push({c, startR:r, endR:hi});
+            continue;
+        }
+        // Personalizados por `legend` (placas, puertas, teletransportes, movers)
+        const L = legend[ch];
+        if (L){
+            if (L.t==='switch') out.switches.push({c,r,gateId:L.gate});
+            else if (L.t==='gate') out.gates.push(L.mode?{c,r,id:L.id,mode:L.mode}:{c,r,id:L.id});
+            else if (L.t==='teleporter') out.teleporters.push({c,r,id:L.id});
+            else if (L.t==='spring') out.springs.push({c,r});
+            continue;
+        }
+        // desconocido → aire (ya está)
+      }
+    }
+    out.grid = grid;
+    // ---- validación ----
+    const errs=[];
+    if (!out.spawns.p1) errs.push('falta spawn P1 (1)');
+    if (!out.spawns.p2) errs.push('falta spawn P2 (2)');
+    const hasPortal = grid.some(row=>row.includes(7));
+    if (!out.boss && !hasPortal) errs.push('falta portal X');
+    if (H!==14) errs.push('altura debe ser 14 filas (tiene '+H+')');
+    out._w=W; out._errs=errs;
+    return out;
+}
+
+const LG = {
+  'p':{t:'switch',gate:0}, 'P':{t:'gate',id:0},
+  'q':{t:'switch',gate:1}, 'Q':{t:'gate',id:1},
+  'e':{t:'switch',gate:2}, 'E':{t:'gate',id:2},
+  'g':{t:'teleporter',id:100}, 'h':{t:'teleporter',id:100},
+  'i':{t:'teleporter',id:101}, 'j':{t:'teleporter',id:101},
+};
+const DEFS = [];
+DEFS.push({
+ name:'Nivel 1: El Valle que Despierta', memId:0, slimeSpeed:1.3,
+ objective:'Piso firme para empezar: pisen a los slimes saltando encima y empujen la caja rosa (solo P1) para alcanzar el recuerdo. ¡Lleguen juntos al portal!',
+ legend:LG,
+ rows:[
+ '##############################################',
+ '#............................................#',
+ '#............................................#',
+ '#..........................*.................#',
+ '#.........................###................#',
+ '#.............o..............................#',
+ '#............###.....................*.......#',
+ '#...................................###......#',
+ '#.......B.........S.........S................#',
+ '#......###.......###.......###...........X...#',
+ '#....................................#####...#',
+ '#..12........S..........__......S............#',
+ '#####################^^#..#^^#################',
+ '##############################################',
+ ]
+});
+DEFS.push({
+ name:'Nivel 2: El Puente Roto', memId:1, slimeSpeed:1.4, sawSpeed:2,
+ objective:'Crucen los puentes frágiles antes de que caigan, esquiven la sierra y empujen juntos la caja dorada. ¡Un paso en falso y a la lava!',
+ legend:LG,
+ rows:["######################################################", "#....................................................#", "#....................................................#", "#.............................*......................#", "#............................###.....................#", "#....................................................#", "#.........................WWWWW......................#", "#...................S.......*........................#", "#.................#####...#####..........o.......X...#", "#.......................................###..#######.#", "#............................................#.......#", "#.12......__S___........S........__S___...O..#.......#", "##########~~~~~~#################~~~~~~###############", "######################################################"]
+});
+DEFS.push({
+ name:'Nivel 3: Cuevas Gemelas', memId:2, slimeSpeed:1.2,
+ objective:'Agua y Fuego: en el pilar, Rosa (P1) pasa por abajo (barrera rosa) y Azul (P2) sube y pasa por arriba (barrera azul). ¡Cada quien por su color y reagrúpense en el portal!',
+ legend:LG,
+ rows:["##################################################", "#.....................A..........................#", "#.....................A..........................#", "#.....................A..........................#", "#.....................A..........................#", "#.....................A..........................#", "#.................S...A.o...*....................#", "#.............###################................#", "#............#........R..........#...............#", "#...........#.........R...........#..............#", "#..........#..........R............#.............#", "#.12....S.............R.................*...S..X.#", "##################################################", "##################################################"]
+});
+DEFS.push({
+ name:'Nivel 4: El Pasaje de Luz', memId:3, slimeSpeed:1.3, convSpeed:1.8, ghostSpeed:0.95,
+ objective:'Los laseres MATAN: paselos CAMINANDO (no salten dentro). Para el recuerdo tras el laser doble, activen el Escudo de P2 (tecla L) y crucen invencibles. ¡Ojo con el fantasma!',
+ legend:LG,
+ rows:["########################################################", "#......L.....L......L.........L........................#", "#......L*....L......L.........L........................#", "#......L.....L......L.........L........................#", "#......L.....L......L......H..L.............*..........#", "#......L.....L......L.........L............###.........#", "#......L.....L......L.........L........................#", "#......L.....L......L.........L........................#", "#......L.....L......L.........L........................#", "#...................L.........L........................#", "#...................L.........L........................#", "#.12.S....S.........L..o......L.>>>>>>..S...........X..#", "########################################################", "########################################################"]
+});
+DEFS.push({
+ name:'Nivel 5: El Templo de la Eternidad', memId:4, slimeSpeed:1.5, sawSpeed:2,
+ objective:'El reto antes del jefe: resorte, teletransporte sobre lava, puente fragil, y una CAJA azul que P2 empuja sobre la placa para abrir la puerta. ¡Usen todo en equipo!',
+ legend:Object.assign({}, LG, { 'Q':{t:'gate',id:1,mode:'hold'} }),
+ rows:["############################################################", "#....................................Q................A....#", "#....................................Q................A....#", "#....................................Q................A....#", "#....................................Q................A....#", "#......*.............................Q................A....#", "#....................................Q................A.*..#", "#....................................Q..............######.#", "#....................................Q.............#..R..#.#", "#....................................Q............#...R....#", "#....................................Q...WWWWW...#....R....#", "#.12...J..g.......h..S..__S___...b..qQ.....o.S........R...X#", "###########~~~~~~#######~~~~~~##############################", "############################################################"]
+});
+DEFS.push({
+ name:'Nivel 6: El Monstruo de la Incomunicacion', memId:5,
+ objective:'Jefe final: uno se para en la placa de distraccion y el otro carga el superataque. Cuando este distraido y la carga llena, golpeenlo juntos 3 veces.',
+ boss:{ hp:3, distract:{c:2,r:11}, charge:{c:22,r:11} },
+ rows:[
+ '#########################',
+ '#.......................#',
+ '#.......................#',
+ '#..*.................*..#',
+ '#.......................#',
+ '#.......................#',
+ '#.......................#',
+ '#..###.............###..#',
+ '#.......................#',
+ '#.......................#',
+ '#.........o.............#',
+ '#..1...........2........#',
+ '#########################',
+ '#########################',
+ ]
+});
+
+        const LEVEL_MAPS = DEFS.map(compileLevel);
+        const MEMORY_SPOTS = LEVEL_MAPS.map(l => l._mem || []);
+
+        const TILE_SIZE = 32;
+        const GRAVITY = 0.45;
+        const JUMP_FORCE = -8.5;
+        const MOVE_SPEED = 3.2;
+
+        let canvas, ctx;
+        let p1, p2;
+        let activeGrid = [];
+        let activeBoxes = [];
+        let activeSwitches = [];
+        let activeGates = [];
+        let activeLasers = [];
+        let activeSaws = [];
+        let activeSlimes = [];
+        let activeGhosts = [];
+        let activeStars = [];
+        let activeDoors = [];
+        let activeMovers = [];      // plataformas móviles
+        let activeSprings = [];     // resortes/trampolines
+        let activeBarriers = [];    // barreras de color (co-op)
+        let activeFallers = [];     // plataformas que se desmoronan
+        let activeConveyors = [];   // cintas transportadoras
+        let activeTeleporters = []; // teletransportadores (pares por id)
+        let exitPortal = { x: 0, y: 0 };
+        let activeCheckpoint = { x: 0, y: 0 };
+        let collectedStarsCount = 0;
+        let totalStars = 0;
+
+        // ---- VFX / juego pro ----
+        let camShakeAmt = 0;
+        let camX = 0;               // desplazamiento horizontal de la cámara (scroll)
+        let levelPixelW = 800;      // ancho del nivel en píxeles
+        const VIEW_W = 25 * 32;     // ancho del viewport (800)
+        let levelIntroT = 0;        // temporizador tarjeta de intro de nivel
+        let levelFlashT = 0;        // destello al completar
+        let currentObjective = '';  // objetivo cooperativo del nivel
+        let bgParallax = 0;
+        const SPRING_POWER = 14.5;
+        function addShake(n){ camShakeAmt = Math.min(16, Math.max(camShakeAmt, n)); }
+
+        let keyState = {};
+        let touchP1 = { left: false, right: false, jump: false, down: false };
+        let touchP2 = { left: false, right: false, jump: false, down: false };
+
+        class Player {
+            constructor(x, y, color, avatar, isP2 = false) {
+                this.startX = x;
+                this.startY = y;
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.width = 24;
+                this.height = 28;
+                this.color = color;
+                this.avatar = avatar;
+                this.isP2 = isP2;
+                this.isGrounded = false;
+                this.isAlive = true;
+                this.jumps = 0;       // saltos usados desde el último contacto con suelo
+                this.facing = 1;
+                // animación
+                this.sqX = 1; this.sqY = 1;
+                this.anim = 0;
+                this.blink = Math.random() * 180;
+                this.trail = [];
+                this.rideMover = null;
+                this.onConveyor = 0;    // dir*speed a aplicar este frame
+                this.teleCd = 0;        // cooldown de teletransporte
+            }
+
+            respawn() {
+                this.x = activeCheckpoint.x || this.startX;
+                this.y = activeCheckpoint.y || this.startY;
+                this.jumps = 0;
+                this.vx = 0;
+                this.vy = 0;
+                this.isAlive = true;
+            }
+
+            update() {
+                if (!this.isAlive) return;
+
+                const inp = this.isP2 ? inputP2 : inputP1;
+                this.rideMover = null;
+                this.onConveyor = 0;
+                if (this.teleCd > 0) this.teleCd--;
+                const wasGrounded = this.isGrounded;
+                const fallSpeed = this.vy;
+
+                if (this.isGrounded) this.jumps = 0;
+
+                // Horizontal movement
+                if (inp.left) { this.vx = -MOVE_SPEED; this.facing = -1; }
+                else if (inp.right) { this.vx = MOVE_SPEED; this.facing = 1; }
+                else this.vx = 0;
+
+                // Jump + Double Jump (solo P1 tiene salto doble)
+                if (inp.jumpEdge) {
+                    if (this.isGrounded) {
+                        this.vy = JUMP_FORCE;
+                        this.isGrounded = false;
+                        this.jumps = 1;
+                        this.sqX = 0.7; this.sqY = 1.3;           // stretch
+                        spawnDust(this.x + this.width/2, this.y + this.height, 5, '#c4b5fd');
+                        sndJump();
+                    } else if (!this.isP2 && this.jumps < 2 && abilities.p1_doubleJump.cd <= 0) {
+                        this.vy = JUMP_FORCE * 0.95;
+                        this.jumps = 2;
+                        this.sqX = 0.75; this.sqY = 1.25;
+                        abilities.p1_doubleJump.cd = abilities.p1_doubleJump.cdMax;
+                        sndJump();
+                        spawnBurst(this.x + this.width/2, this.y + this.height, '#f9a8d4');
+                    }
+                }
+
+                // Gravity
+                this.vy += GRAVITY;
+
+                // Move X & Collide
+                this.x += this.vx;
+                this.checkHorizontalCollisions();
+
+                // Move Y & Collide
+                this.y += this.vy;
+                this.checkVerticalCollisions();
+
+                // Landing juice
+                if (!wasGrounded && this.isGrounded && fallSpeed > 3.5) {
+                    this.sqX = 1.35; this.sqY = 0.65;
+                    spawnDust(this.x + this.width/2, this.y + this.height, Math.min(10, Math.floor(fallSpeed)), '#a78bfa');
+                    if (fallSpeed > 7.5) addShake(3);
+                }
+                // Run dust
+                if (this.isGrounded && Math.abs(this.vx) > 1 && (this.anim % 8 === 0)) {
+                    spawnDust(this.x + this.width/2 - this.facing*8, this.y + this.height, 1, 'rgba(200,190,230,0.7)');
+                }
+                // Ease squash back to normal
+                this.sqX += (1 - this.sqX) * 0.2;
+                this.sqY += (1 - this.sqY) * 0.2;
+                this.anim++;
+                this.blink++;
+                // Trail
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 7) this.trail.shift();
+            }
+
+            checkHorizontalCollisions() {
+                // Check Map Tiles
+                this.collideTiles(true);
+                // Check Box Push Sokoban
+                activeBoxes.forEach(box => {
+                    if (isAABBColliding(this, box)) {
+                        // Check color permission
+                        const canPush = (box.color === 'gold') || 
+                                        (!this.isP2 && box.color === 'pink') || 
+                                        (this.isP2 && box.color === 'blue');
+
+                        if (canPush) {
+                            const pushDist = this.vx;
+                            if (box.canMove(pushDist, 0)) {
+                                box.x += pushDist;
+                                sndPush();
+                            } else {
+                                if (this.vx > 0) this.x = box.x - this.width;
+                                else if (this.vx < 0) this.x = box.x + box.width;
+                            }
+                        } else {
+                            // Blocked as solid wall
+                            if (this.vx > 0) this.x = box.x - this.width;
+                            else if (this.vx < 0) this.x = box.x + box.width;
+                        }
+                    }
+                });
+                // Temp platforms (horizontal block)
+                activeTempPlatforms.forEach(tp => {
+                    if (isAABBColliding(this, tp)) {
+                        if (this.vx > 0) this.x = tp.x - this.width;
+                        else if (this.vx < 0) this.x = tp.x + tp.width;
+                    }
+                });
+                // Moving platforms (horizontal block)
+                activeMovers.forEach(m => {
+                    if (isAABBColliding(this, m)) {
+                        if (this.vx > 0) this.x = m.x - this.width;
+                        else if (this.vx < 0) this.x = m.x + m.width;
+                    }
+                });
+                // Colored barriers block the OPPOSITE color (co-op)
+                const myColor = this.isP2 ? 'blue' : 'pink';
+                activeBarriers.forEach(b => {
+                    if (b.color !== myColor && isAABBColliding(this, b)) {
+                        if (this.vx > 0) this.x = b.x - this.width;
+                        else if (this.vx < 0) this.x = b.x + b.width;
+                    }
+                });
+                // Crumbling platforms (sólidas salvo cuando ya cayeron)
+                activeFallers.forEach(fp => {
+                    if (fp.state !== 'gone' && isAABBColliding(this, fp)) {
+                        if (this.vx > 0) this.x = fp.x - this.width;
+                        else if (this.vx < 0) this.x = fp.x + fp.width;
+                    }
+                });
+                // Conveyors (sólidas por los lados)
+                activeConveyors.forEach(cv => {
+                    if (isAABBColliding(this, cv)) {
+                        if (this.vx > 0) this.x = cv.x - this.width;
+                        else if (this.vx < 0) this.x = cv.x + cv.width;
+                    }
+                });
+            }
+
+            checkVerticalCollisions() {
+                this.collideTiles(false);
+                // Box Vertical Landing
+                activeBoxes.forEach(box => {
+                    if (isAABBColliding(this, box)) {
+                        if (this.vy > 0 && this.y + this.height - this.vy <= box.y) {
+                            this.y = box.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                        } else if (this.vy < 0 && this.y - this.vy >= box.y + box.height) {
+                            this.y = box.y + box.height;
+                            this.vy = 0;
+                        }
+                    }
+                });
+                // Temp platforms (vertical landing)
+                activeTempPlatforms.forEach(tp => {
+                    if (isAABBColliding(this, tp)) {
+                        if (this.vy > 0 && this.y + this.height - this.vy <= tp.y + 6) {
+                            this.y = tp.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                        } else if (this.vy < 0 && this.y - this.vy >= tp.y + tp.height) {
+                            this.y = tp.y + tp.height;
+                            this.vy = 0;
+                        }
+                    }
+                });
+                // Moving platforms (land on top -> ride)
+                activeMovers.forEach(m => {
+                    if (isAABBColliding(this, m)) {
+                        if (this.vy >= 0 && this.y + this.height - this.vy <= m.y + 10) {
+                            this.y = m.y - this.height;
+                            this.vy = 0;
+                            this.isGrounded = true;
+                            this.rideMover = m;
+                        } else if (this.vy < 0 && this.y - this.vy >= m.y + m.height) {
+                            this.y = m.y + m.height;
+                            this.vy = 0;
+                        }
+                    }
+                });
+                // Colored barriers (vertical block for opposite color)
+                const myColorV = this.isP2 ? 'blue' : 'pink';
+                activeBarriers.forEach(b => {
+                    if (b.color !== myColorV && isAABBColliding(this, b)) {
+                        if (this.vy > 0 && this.y + this.height - this.vy <= b.y) {
+                            this.y = b.y - this.height; this.vy = 0; this.isGrounded = true;
+                        } else if (this.vy < 0 && this.y - this.vy >= b.y + b.height) {
+                            this.y = b.y + b.height; this.vy = 0;
+                        }
+                    }
+                });
+                // Crumbling platforms (aterrizar encima dispara el derrumbe)
+                activeFallers.forEach(fp => {
+                    if (fp.state !== 'gone' && isAABBColliding(this, fp)) {
+                        if (this.vy > 0 && this.y + this.height - this.vy <= fp.y + 10) {
+                            this.y = fp.y - this.height; this.vy = 0; this.isGrounded = true;
+                            if (fp.state === 'solid') { fp.state = 'shaking'; fp.timer = 46; }
+                        } else if (this.vy < 0 && this.y - this.vy >= fp.y + fp.height) {
+                            this.y = fp.y + fp.height; this.vy = 0;
+                        }
+                    }
+                });
+                // Conveyors (aterrizar encima -> empuje lateral)
+                activeConveyors.forEach(cv => {
+                    if (isAABBColliding(this, cv)) {
+                        if (this.vy > 0 && this.y + this.height - this.vy <= cv.y + 10) {
+                            this.y = cv.y - this.height; this.vy = 0; this.isGrounded = true;
+                            this.onConveyor = cv.dir * cv.speed;
+                        } else if (this.vy < 0 && this.y - this.vy >= cv.y + cv.height) {
+                            this.y = cv.y + cv.height; this.vy = 0;
+                        }
+                    }
+                });
+            }
+
+            collideTiles(isHorizontal) {
+                const left = Math.floor(this.x / TILE_SIZE);
+                const right = Math.floor((this.x + this.width) / TILE_SIZE);
+                const top = Math.floor(this.y / TILE_SIZE);
+                const bottom = Math.floor((this.y + this.height) / TILE_SIZE);
+
+                for (let r = top; r <= bottom; r++) {
+                    for (let c = left; c <= right; c++) {
+                        if (r < 0 || r >= activeGrid.length || c < 0 || c >= activeGrid[0].length) continue;
+                        
+                        const tile = activeGrid[r][c];
+
+                        // Spikes or Lava check
+                        if (tile === 2 || tile === 3) {
+                            killPlayers("¡Has caído en una trampa!");
+                            return;
+                        }
+
+                        // Closed Gate Check
+                        const isClosedGate = activeGates.some(g => g.c === c && g.r === r && !g.isOpen);
+                        const isClosedDoor = activeDoors.some(d => d.c === c && d.r === r && !d.isOpen);
+
+                        if (tile === 1 || isClosedGate || isClosedDoor) {
+                            if (isHorizontal) {
+                                if (this.vx > 0) this.x = c * TILE_SIZE - this.width - 0.1;
+                                else if (this.vx < 0) this.x = (c + 1) * TILE_SIZE + 0.1;
+                                this.vx = 0;
+                            } else {
+                                if (this.vy > 0) {
+                                    this.y = r * TILE_SIZE - this.height - 0.1;
+                                    this.vy = 0;
+                                    this.isGrounded = true;
+                                } else if (this.vy < 0) {
+                                    this.y = (r + 1) * TILE_SIZE + 0.1;
+                                    this.vy = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (!this.isAlive) return;
+                const cx = this.x + this.width / 2;
+                const w = this.width * this.sqX, h = this.height * this.sqY;
+                const dx = this.x + (this.width - w) / 2;
+                const dy = this.y + (this.height - h);   // anclar a los pies
+
+                // Trail
+                for (let i = 0; i < this.trail.length; i++) {
+                    const tt = this.trail[i];
+                    ctx.save();
+                    ctx.globalAlpha = (i / this.trail.length) * 0.22;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath(); ctx.roundRect(tt.x, tt.y, this.width, this.height, 8); ctx.fill();
+                    ctx.restore();
+                }
+
+                // Sombra
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.beginPath(); ctx.ellipse(cx, this.y + this.height + 3, this.width/2 + 1, 4, 0, 0, 7); ctx.fill();
+                ctx.restore();
+
+                // Cuerpo con glow
+                ctx.save();
+                ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+                const grad = ctx.createLinearGradient(dx, dy, dx, dy + h);
+                grad.addColorStop(0, this.isP2 ? '#38bdf8' : '#fb7185');
+                grad.addColorStop(1, this.color);
+                ctx.fillStyle = grad;
+                ctx.beginPath(); ctx.roundRect(dx, dy, w, h, 9); ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke();
+
+                // Mejilla / brillo
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath(); ctx.roundRect(dx + 4, dy + 4, w - 8, 6, 4); ctx.fill();
+
+                // Ojos (con parpadeo)
+                const blinking = (this.blink % 180) < 8;
+                const eyeY = dy + h * 0.42;
+                const ex = this.facing >= 0 ? 2 : -2;
+                ctx.fillStyle = '#fff';
+                if (!blinking) {
+                    ctx.beginPath(); ctx.arc(cx - 5 + ex, eyeY, 3.4, 0, 7); ctx.arc(cx + 5 + ex, eyeY, 3.4, 0, 7); ctx.fill();
+                    ctx.fillStyle = '#1e1b2e';
+                    ctx.beginPath(); ctx.arc(cx - 5 + ex + this.facing, eyeY + 1, 1.7, 0, 7); ctx.arc(cx + 5 + ex + this.facing, eyeY + 1, 1.7, 0, 7); ctx.fill();
+                } else {
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(cx-8+ex,eyeY); ctx.lineTo(cx-2+ex,eyeY); ctx.moveTo(cx+2+ex,eyeY); ctx.lineTo(cx+8+ex,eyeY); ctx.stroke();
+                }
+                ctx.restore();
+
+                // Avatar flotando sobre la cabeza
+                ctx.font = '14px serif'; ctx.textAlign = 'center';
+                ctx.fillText(this.avatar, cx, dy - 3);
+            }
+        }
+
+        class Box {
+            constructor(c, r, color) {
+                this.x = c * TILE_SIZE;
+                this.y = r * TILE_SIZE;
+                this.width = TILE_SIZE;
+                this.height = TILE_SIZE;
+                this.color = color; // 'pink', 'blue', 'gold'
+                this.vy = 0;
+            }
+
+            canMove(dx, dy) {
+                const targetX = this.x + dx;
+                const targetY = this.y + dy;
+
+                // Check wall bounds
+                const left = Math.floor(targetX / TILE_SIZE);
+                const right = Math.floor((targetX + this.width - 1) / TILE_SIZE);
+                const top = Math.floor(targetY / TILE_SIZE);
+                const bottom = Math.floor((targetY + this.height - 1) / TILE_SIZE);
+
+                for (let r = top; r <= bottom; r++) {
+                    for (let c = left; c <= right; c++) {
+                        if (r < 0 || r >= activeGrid.length || c < 0 || c >= activeGrid[0].length) return false;
+                        if (activeGrid[r][c] === 1) return false; // solid tile
+                        if (activeGates.some(g => g.c === c && g.r === r && !g.isOpen)) return false;
+                    }
+                }
+
+                // Check other boxes
+                for (let other of activeBoxes) {
+                    if (other !== this) {
+                        if (isAABBColliding({ x: targetX, y: targetY, width: this.width, height: this.height }, other)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            update() {
+                // Apply Box Gravity
+                this.vy += GRAVITY;
+                if (this.canMove(0, this.vy)) {
+                    this.y += this.vy;
+                } else {
+                    // Check if crushed an enemy beneath!
+                    activeSlimes.forEach(s => {
+                        if (s.alive && isAABBColliding(this, s)) {
+                            s.alive = false;
+                            sndSquish();
+                        }
+                    });
+                    this.vy = 0;
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.fillStyle = this.color === 'pink' ? '#f43f5e' : (this.color === 'blue' ? '#0284c7' : '#eab308');
+                ctx.beginPath();
+                ctx.roundRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4, 6);
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Inner Box Texture Icon
+                ctx.font = '14px serif';
+                ctx.textAlign = 'center';
+                const symbol = this.color === 'pink' ? '💖' : (this.color === 'blue' ? '⭐' : '👑');
+                ctx.fillText(symbol, this.x + this.width / 2, this.y + 22);
+                ctx.restore();
+            }
+        }
+
+        function isAABBColliding(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y
+            );
+        }
+
+        function loadLevel(levelIdx) {
+            gameState.currentLevelIdx = levelIdx;
+            const levelData = LEVEL_MAPS[levelIdx];
+
+            document.getElementById('game-level-title').innerText = levelData.name;
+            document.getElementById('hud-lives-count').innerText = gameState.lives;
+
+            activeGrid = levelData.grid;
+            levelPixelW = activeGrid[0].length * TILE_SIZE;
+            camX = 0;
+            collectedStarsCount = 0;
+
+            // Spawns
+            const p1X = levelData.spawns.p1.c * TILE_SIZE;
+            const p1Y = levelData.spawns.p1.r * TILE_SIZE;
+            const p2X = levelData.spawns.p2.c * TILE_SIZE;
+            const p2Y = levelData.spawns.p2.r * TILE_SIZE;
+
+            activeCheckpoint = { x: p1X, y: p1Y };
+
+            p1 = new Player(p1X, p1Y, gameState.players[0].color, gameState.players[0].avatar, false);
+            p2 = new Player(p2X, p2Y, gameState.players[1].color, gameState.players[1].avatar, true);
+
+            // Boxes
+            activeBoxes = levelData.boxes.map(b => new Box(b.c, b.r, b.color));
+
+            // Switches & Gates
+            activeSwitches = levelData.switches.map(s => ({ x: s.c * TILE_SIZE, y: s.r * TILE_SIZE, gateId: s.gateId, pressed: false }));
+            activeGates = levelData.gates.map(g => ({ c: g.c, r: g.r, x: g.c * TILE_SIZE, y: g.r * TILE_SIZE, id: g.id, isOpen: false, mode: g.mode || 'latch', latched: false }));
+
+            // Lasers
+            activeLasers = levelData.lasers.map(l => ({ x: l.c * TILE_SIZE, startY: l.startR * TILE_SIZE, endY: (l.endR + 1) * TILE_SIZE }));
+
+            // Saws
+            activeSaws = levelData.saws.map(s => ({
+                x: s.minC * TILE_SIZE,
+                y: s.r * TILE_SIZE,
+                minX: s.minC * TILE_SIZE,
+                maxX: s.maxC * TILE_SIZE,
+                speed: s.speed,
+                dir: 1,
+                angle: 0
+            }));
+
+            // Slimes
+            activeSlimes = levelData.slimes.map(s => ({
+                x: s.minC * TILE_SIZE + 1,
+                y: s.r * TILE_SIZE + (TILE_SIZE - 22),  // descansa sobre el piso (sin flotar)
+                width: 30,
+                height: 22,
+                minX: s.minC * TILE_SIZE,
+                maxX: (s.maxC + 1) * TILE_SIZE - 30,
+                speed: s.speed,
+                dir: 1,
+                alive: true
+            }));
+
+            // Ghosts
+            activeGhosts = levelData.ghosts.map(g => ({
+                x: g.c * TILE_SIZE,
+                y: g.r * TILE_SIZE,
+                width: 24,
+                height: 24,
+                speed: g.speed,
+                alive: true
+            }));
+
+            // Collectibles & Doors
+            activeStars = levelData.stars.map(s => ({ x: s.c * TILE_SIZE, y: s.r * TILE_SIZE, collected: false }));
+            activeDoors = levelData.doors.map(d => ({ c: d.c, r: d.r, x: d.c * TILE_SIZE, y: d.r * TILE_SIZE, isOpen: d.isOpen }));
+
+            // Moving platforms, springs, colored barriers (nuevas mecánicas co-op)
+            activeMovers = (levelData.movers || []).map(m => ({
+                x: m.c * TILE_SIZE, y: m.r * TILE_SIZE,
+                width: (m.w || 2) * TILE_SIZE, height: 14,
+                ox: m.c * TILE_SIZE, oy: m.r * TILE_SIZE,
+                axis: m.axis || 'h', dist: (m.dist || 3) * TILE_SIZE,
+                speed: (m.speed || 1), phase: (m.phase || 0), dx: 0, dy: 0
+            }));
+            activeSprings = (levelData.springs || []).map(s => ({ x: s.c * TILE_SIZE, y: s.r * TILE_SIZE + 20, width: TILE_SIZE, height: 12, t: 0 }));
+            activeBarriers = (levelData.barriers || []).map(b => ({ x: b.c * TILE_SIZE, y: b.r * TILE_SIZE, width: TILE_SIZE, height: (b.h || 2) * TILE_SIZE, color: b.color }));
+            activeFallers = (levelData.fallers || []).map(f => ({ x: f.c * TILE_SIZE, y: f.r * TILE_SIZE, width: (f.w || 1) * TILE_SIZE, height: 16, state: 'solid', timer: 0 }));
+            activeConveyors = (levelData.conveyors || []).map(cv => ({ x: cv.c * TILE_SIZE, y: cv.r * TILE_SIZE, width: (cv.w || 2) * TILE_SIZE, height: 14, dir: cv.dir || 1, speed: (cv.speed || 1.5) }));
+            activeTeleporters = (levelData.teleporters || []).map(t => ({ x: t.c * TILE_SIZE, y: t.r * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE, id: t.id }));
+
+            // Exit Portal
+            let portalFound = false;
+            for (let r = 0; r < activeGrid.length; r++) {
+                for (let c = 0; c < activeGrid[0].length; c++) {
+                    if (activeGrid[r][c] === 7) {
+                        exitPortal = { x: c * TILE_SIZE, y: r * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE };
+                        portalFound = true;
+                    }
+                }
+            }
+            if (!portalFound) exitPortal = { x: -999, y: -999, width: TILE_SIZE, height: TILE_SIZE };
+
+            totalStars = activeStars.length;
+            document.getElementById('game-stars-count').innerText = `0/${totalStars}`;
+
+            // ---- Enhancements setup ----
+            // Reset abilities, shield, temp platforms, particles, lasso
+            resetAbilities();
+            activeTempPlatforms = [];
+            particles = [];
+            lassoVisual = null;
+
+            // Collectible memories (fragmentos de fotos / cartas)
+            const spots = MEMORY_SPOTS[levelIdx] || [];
+            activeMemories = spots.map(s => ({
+                x: s.c * TILE_SIZE, y: s.r * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE,
+                id: s.id, collected: gameState.memories.includes(s.id)
+            }));
+            document.getElementById('game-mem-count').innerText =
+                `${activeMemories.filter(m => m.collected).length}/${activeMemories.length}`;
+
+            // Boss
+            if (levelData.boss) {
+                setupBoss(levelData.boss);
+            } else {
+                activeBoss = null;
+            }
+
+            updateScoreHud();
+
+            // Objetivo cooperativo + tarjeta de intro + reset VFX
+            currentObjective = levelData.objective || 'Lleguen juntos al portal 🌀';
+            levelIntroT = 150;      // ~2.5 s de tarjeta de intro
+            levelFlashT = 0;
+            camShakeAmt = 0;
+            const objEl = document.getElementById('hud-objective');
+            if (objEl) objEl.innerText = currentObjective;
+
+            // Online: el anfitrión avisa al cliente qué nivel cargar
+            if (net.mode === 'host') netSend({ t: 'lvl', idx: levelIdx });
+        }
+
+        let animationFrameId = null;
+
+        function startGameLoop() {
+            canvas = document.getElementById('game-canvas');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d');
+
+            canvas.width = 25 * TILE_SIZE; // 800
+            canvas.height = 14 * TILE_SIZE; // 448
+
+            function loop() {
+                try {
+                    if (net.mode === 'client') {
+                        netClientTick();           // cliente: envía input local + dibuja último snapshot
+                    } else if (!gameState.isPaused) {
+                        updateGame();              // local o host autoritativo
+                        renderGame();
+                    }
+                } catch (err) {
+                    console.error('loop error:', err);   // un error no detiene el juego por completo
+                }
+                animationFrameId = requestAnimationFrame(loop);
+            }
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            loop();
+        }
+
+        function updateGame() {
+            gatherInputs();
+            tickAbilities();
+
+            p1.update();
+            p2.update();
+
+            activeBoxes.forEach(b => b.update());
+
+            // Check Pressure Switches (plates)
+            activeSwitches.forEach(sw => {
+                let pressed = false;
+                const swRect = { x: sw.x + 4, y: sw.y + 20, width: 24, height: 12 };
+
+                if (isAABBColliding(p1, swRect) || isAABBColliding(p2, swRect)) pressed = true;
+                activeBoxes.forEach(b => {
+                    if (isAABBColliding(b, swRect)) pressed = true;
+                });
+
+                if (pressed && !sw.pressed) { sndSwitch(); spawnBurst(sw.x + 16, sw.y + 24, '#22c55e'); }
+                sw.pressed = pressed;
+            });
+
+            // Gates: abren si TODAS las placas de su id están presionadas (AND).
+            // mode 'latch' (por defecto) quedan abiertas una vez logrado; 'hold' requieren mantenerlas.
+            activeGates.forEach(g => {
+                const grp = activeSwitches.filter(s => s.gateId === g.id);
+                const allPressed = grp.length > 0 && grp.every(s => s.pressed);
+                const wasOpen = g.isOpen;
+                if (g.mode === 'hold') {
+                    g.isOpen = allPressed;
+                } else {
+                    if (allPressed) g.latched = true;
+                    g.isOpen = g.latched;
+                }
+                if (g.isOpen && !wasOpen) { sndUnlock(); addShake(2); }
+            });
+
+            // Plataformas móviles: mover y arrastrar a quien va encima
+            activeMovers.forEach(m => {
+                m.phase += 0.02 * m.speed;
+                const off = Math.sin(m.phase) * m.dist;
+                const nx = m.axis === 'h' ? m.ox + off : m.ox;
+                const ny = m.axis === 'v' ? m.oy + off : m.oy;
+                m.dx = nx - m.x; m.dy = ny - m.y;
+                m.x = nx; m.y = ny;
+            });
+            [p1, p2].forEach(p => {
+                if (p.isAlive && p.rideMover) { p.x += p.rideMover.dx; p.y += p.rideMover.dy; }
+                if (p.isAlive && p.onConveyor) { p.x += p.onConveyor; }   // empuje de cinta
+            });
+
+            // Plataformas que se desmoronan
+            activeFallers.forEach(fp => {
+                if (fp.state === 'shaking') { fp.timer--; if (fp.timer <= 0) { fp.state = 'gone'; fp.timer = 150; spawnDust(fp.x + fp.width/2, fp.y + 8, 8, '#a16207'); } }
+                else if (fp.state === 'gone') { fp.timer--; if (fp.timer <= 0) { fp.state = 'solid'; } }
+            });
+
+            // Teletransportadores (pares por id)
+            activeTeleporters.forEach(tp => {
+                // zona de activación un poco más alta (teletransporta aunque saltes bajo sobre él)
+                const zone = { x: tp.x - 2, y: tp.y - 18, width: tp.width + 4, height: tp.height + 18 };
+                [p1, p2].forEach(p => {
+                    if (p.isAlive && p.teleCd <= 0 && isAABBColliding(p, zone)) {
+                        const dest = activeTeleporters.find(o => o !== tp && o.id === tp.id);
+                        if (dest) {
+                            p.x = dest.x + (TILE_SIZE - p.width) / 2;
+                            p.y = dest.y + (TILE_SIZE - p.height);
+                            p.vy = 0; p.teleCd = 25;
+                            sndUnlock();
+                            spawnBurst(tp.x + 16, tp.y + 16, '#a78bfa');
+                            spawnBurst(dest.x + 16, dest.y + 16, '#a78bfa');
+                        }
+                    }
+                });
+            });
+
+            // Resortes / trampolines
+            activeSprings.forEach(s => {
+                if (s.t > 0) s.t--;
+                [p1, p2].forEach(p => {
+                    if (p.isAlive && p.vy >= 0 && isAABBColliding(p, s) && p.y + p.height <= s.y + 14) {
+                        p.vy = -SPRING_POWER;
+                        p.isGrounded = false;
+                        p.jumps = 1;
+                        s.t = 12;
+                        sndJump();
+                        spawnDust(s.x + 16, s.y, 8, '#fde68a');
+                    }
+                });
+            });
+
+            // Update Saws
+            activeSaws.forEach(s => {
+                s.x += s.speed * s.dir;
+                s.angle += 0.15;
+                if (s.x >= s.maxX) s.dir = -1;
+                if (s.x <= s.minX) s.dir = 1;
+
+                const sawRect = { x: s.x + 4, y: s.y + 4, width: 24, height: 24 };
+                if (isAABBColliding(p1, sawRect) || isAABBColliding(p2, sawRect)) {
+                    killPlayers("¡Cuidado con la sierra!");
+                }
+            });
+
+            // Update Slimes
+            activeSlimes.forEach(s => {
+                if (!s.alive) return;
+                s.x += s.speed * s.dir;
+                if (s.x >= s.maxX) s.dir = -1;
+                if (s.x <= s.minX) s.dir = 1;
+
+                // Stomp (pisar desde arriba) o daño (choque lateral)
+                [p1, p2].forEach(p => {
+                    if (p.isAlive && isAABBColliding(p, s)) {
+                        if (p.vy > 0.3) {
+                            // Cualquier contacto mientras caes = pisotón (muy indulgente y justo)
+                            s.alive = false;
+                            p.vy = JUMP_FORCE * 0.85;
+                            p.sqX = 1.3; p.sqY = 0.7;
+                            sndSquish();
+                            spawnBurst(s.x + s.width/2, s.y + s.height/2, '#22c55e');
+                            addShake(2);
+                            gameState.score += 25;
+                        } else {
+                            killPlayers("¡Te atrapó el Slime! (salta encima para aplastarlo)");
+                        }
+                    }
+                });
+            });
+
+            // Update Ghosts
+            activeGhosts.forEach(g => {
+                if (!g.alive) return;
+                // Target nearest player
+                const target = p1.isAlive ? p1 : p2;
+                const dx = target.x - g.x;
+                const dy = target.y - g.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 0) {
+                    g.x += (dx / dist) * g.speed;
+                    g.y += (dy / dist) * g.speed;
+                }
+
+                [p1, p2].forEach(p => {
+                    if (p.isAlive && isAABBColliding(p, g)) {
+                        const prevBottom = p.y + p.height - p.vy;
+                        if (p.vy > 0.5 && prevBottom <= g.y + g.height - 2) {
+                            g.alive = false;
+                            p.vy = JUMP_FORCE * 0.85;
+                            p.sqX = 1.3; p.sqY = 0.7;
+                            sndSquish();
+                            spawnBurst(g.x + g.width/2, g.y + g.height/2, '#e9d5ff');
+                            addShake(2);
+                        } else {
+                            killPlayers("¡El Fantasma te alcanzó! (salta encima para vencerlo)");
+                        }
+                    }
+                });
+            });
+
+            // Update Lasers Raycast Blocked by Boxes
+            activeLasers.forEach(l => {
+                let actualEndY = l.endY;
+
+                // Check if a box blocks the laser
+                activeBoxes.forEach(b => {
+                    if (b.x <= l.x && b.x + b.width >= l.x + 4) {
+                        if (b.y >= l.startY && b.y < actualEndY) {
+                            actualEndY = b.y; // laser stops at top of box!
+                        }
+                    }
+                });
+
+                l.currentEndY = actualEndY;
+
+                const laserBeamRect = { x: l.x + 12, y: l.startY, width: 8, height: actualEndY - l.startY };
+                if (isAABBColliding(p1, laserBeamRect) || isAABBColliding(p2, laserBeamRect)) {
+                    killPlayers("¡El Láser destruyó al equipo!");
+                }
+            });
+
+            // Check Collectible Stars
+            activeStars.forEach(s => {
+                if (!s.collected) {
+                    const starRect = { x: s.x, y: s.y, width: TILE_SIZE, height: TILE_SIZE };
+                    if (isAABBColliding(p1, starRect) || isAABBColliding(p2, starRect)) {
+                        s.collected = true;
+                        collectedStarsCount++;
+                        sndStar();
+                        spawnBurst(s.x + TILE_SIZE/2, s.y + TILE_SIZE/2, '#fde047');
+                        document.getElementById('game-stars-count').innerText = `${collectedStarsCount}/${totalStars}`;
+                    }
+                }
+            });
+
+            // Check Quiz Door Triggers
+            activeDoors.forEach(d => {
+                if (!d.isOpen) {
+                    const doorRect = { x: d.x, y: d.y, width: TILE_SIZE, height: TILE_SIZE };
+                    if (isAABBColliding(p1, doorRect) || isAABBColliding(p2, doorRect)) {
+                        triggerQuizModal(d);
+                    }
+                }
+            });
+
+            // Collectible Memories (fotos / cartas)
+            updateMemories();
+
+            // Boss fight
+            if (activeBoss) updateBoss();
+
+            // Particles & lasso visual decay
+            updateParticles();
+
+            // VFX timers
+            if (camShakeAmt > 0) camShakeAmt *= 0.86;
+            if (camShakeAmt < 0.3) camShakeAmt = 0;
+            if (levelIntroT > 0) levelIntroT--;
+            if (levelFlashT > 0) levelFlashT--;
+            bgParallax += 0.3;
+
+            // Ability cooldown HUD
+            updateAbilityHud();
+
+            // Check Exit Portal (niveles normales)
+            if (isAABBColliding(p1, exitPortal) && isAABBColliding(p2, exitPortal)) {
+                completeLevel();
+            }
+
+            // Online: host difunde el estado autoritativo
+            if (net.mode === 'host') netHostBroadcast();
+        }
+
+        function killPlayers(reasonMsg) {
+            if (!p1.isAlive || !p2.isAlive) return;
+            if (shieldState.active > 0) { return; }   // Escudo Protector absorbe el daño
+
+            p1.isAlive = false;
+            p2.isAlive = false;
+            sndHit();
+            addShake(12);
+            spawnBurst(p1.x + p1.width/2, p1.y + p1.height/2, '#f43f5e');
+            spawnBurst(p2.x + p2.width/2, p2.y + p2.height/2, '#38bdf8');
+            gameState.lives--;
+            document.getElementById('hud-lives-count').innerText = gameState.lives;
+
+            if (gameState.lives <= 0) {
+                showInGameBanner("💀 ¡Sin vidas! Reiniciando el nivel...");
+                gameState.lives = 5;
+                setTimeout(() => loadLevel(gameState.currentLevelIdx), 1200);
+            } else {
+                showInGameBanner(reasonMsg);
+                setTimeout(() => {
+                    p1.respawn();
+                    p2.respawn();
+                }, 800);
+            }
+        }
+
+        function renderGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // ---- Cámara: sigue el punto medio de los jugadores ----
+            const midX = ((p1 ? p1.x : 0) + (p2 ? p2.x : 0)) / 2 + 12;
+            const targetCam = Math.max(0, Math.min(Math.max(0, levelPixelW - VIEW_W), midX - VIEW_W / 2));
+            camX += (targetCam - camX) * 0.12;
+            if (Math.abs(targetCam - camX) < 0.4) camX = targetCam;
+
+            // Parallax backdrop (usa camX; no se agita con la pantalla)
+            drawBackdrop(ctx);
+
+            // Cámara + shake
+            ctx.save();
+            const shX = camShakeAmt > 0 ? (Math.random() - 0.5) * camShakeAmt : 0;
+            const shY = camShakeAmt > 0 ? (Math.random() - 0.5) * camShakeAmt : 0;
+            ctx.translate(-Math.round(camX) + shX, shY);
+
+            const rows = activeGrid.length;
+            const cols = activeGrid[0].length;
+            const t = Date.now() / 1000;
+            const cMin = Math.max(0, Math.floor(camX / TILE_SIZE) - 1);
+            const cMax = Math.min(cols - 1, Math.ceil((camX + VIEW_W) / TILE_SIZE) + 1);
+
+            // Tilemap pulido (solo columnas visibles)
+            for (let r = 0; r < rows; r++) {
+                for (let c = cMin; c <= cMax; c++) {
+                    const tile = activeGrid[r][c];
+                    const x = c * TILE_SIZE, y = r * TILE_SIZE;
+                    if (tile === 1) {
+                        const topOpen = (r === 0) || activeGrid[r-1][c] !== 1;
+                        ctx.fillStyle = '#241049';
+                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                        ctx.fillRect(x, y + TILE_SIZE - 6, TILE_SIZE, 6);
+                        if (topOpen) {
+                            ctx.fillStyle = '#7c3aed';
+                            ctx.fillRect(x, y, TILE_SIZE, 5);
+                            ctx.fillStyle = 'rgba(196,181,253,0.55)';
+                            ctx.fillRect(x, y, TILE_SIZE, 2);
+                        }
+                        ctx.strokeStyle = 'rgba(124,58,237,0.25)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x + 0.5, y + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+                    } else if (tile === 2) { // Spikes
+                        ctx.fillStyle = '#b91c1c';
+                        ctx.fillRect(x, y + TILE_SIZE - 5, TILE_SIZE, 5);
+                        for (let k = 0; k < 2; k++) {
+                            const sx = x + k * 16;
+                            ctx.fillStyle = '#ef4444';
+                            ctx.beginPath();
+                            ctx.moveTo(sx, y + TILE_SIZE);
+                            ctx.lineTo(sx + 8, y + 6);
+                            ctx.lineTo(sx + 16, y + TILE_SIZE);
+                            ctx.fill();
+                            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                            ctx.beginPath();
+                            ctx.moveTo(sx + 8, y + 6);
+                            ctx.lineTo(sx + 10, y + 16);
+                            ctx.lineTo(sx + 6, y + 16);
+                            ctx.fill();
+                        }
+                    } else if (tile === 3) { // Lava animada
+                        ctx.fillStyle = '#7c2d12';
+                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                        const grad = ctx.createLinearGradient(0, y + 4, 0, y + TILE_SIZE);
+                        grad.addColorStop(0, '#fb923c');
+                        grad.addColorStop(0.5, '#f97316');
+                        grad.addColorStop(1, '#c2410c');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y + 10);
+                        for (let i = 0; i <= TILE_SIZE; i += 4) {
+                            ctx.lineTo(x + i, y + 8 + Math.sin((x + i) / 6 + t * 4) * 3);
+                        }
+                        ctx.lineTo(x + TILE_SIZE, y + TILE_SIZE);
+                        ctx.lineTo(x, y + TILE_SIZE);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = 'rgba(253,224,71,0.8)';
+                        ctx.fillRect(x, y + 6 + Math.sin(x / 6 + t * 4) * 2, TILE_SIZE, 2);
+                    }
+                }
+            }
+
+            // Barreras de color, placas, compuertas, resortes, móviles
+            drawBarriers(ctx);
+            activeSwitches.forEach(sw => {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(sw.x + 2, sw.y + 26, TILE_SIZE - 4, 6);
+                ctx.fillStyle = sw.pressed ? '#22c55e' : '#eab308';
+                ctx.fillRect(sw.x + 4, sw.y + (sw.pressed ? 28 : 24), TILE_SIZE - 8, sw.pressed ? 4 : 8);
+                if (!sw.pressed) { ctx.fillStyle = 'rgba(234,179,8,0.35)'; ctx.fillRect(sw.x + 4, sw.y + 22, TILE_SIZE - 8, 2); }
+            });
+            activeGates.forEach(g => {
+                if (!g.isOpen) {
+                    const grad = ctx.createLinearGradient(g.x, g.y, g.x, g.y + TILE_SIZE);
+                    grad.addColorStop(0, '#94a3b8'); grad.addColorStop(1, '#475569');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(g.x + 6, g.y, TILE_SIZE - 12, TILE_SIZE);
+                    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                    for (let yy = g.y + 4; yy < g.y + TILE_SIZE; yy += 8) ctx.fillRect(g.x + 6, yy, TILE_SIZE - 12, 2);
+                    ctx.font = '12px serif'; ctx.textAlign = 'center';
+                    ctx.fillText('🔒', g.x + TILE_SIZE/2, g.y + 20);
+                }
+            });
+            drawSprings(ctx);
+            drawMovers(ctx);
+            drawConveyors(ctx);
+            drawFallers(ctx);
+            drawTeleporters(ctx);
+
+            // Lasers
+            activeLasers.forEach(l => {
+                const endY = l.currentEndY || l.endY;
+                if (endY > l.startY) {
+                    ctx.save();
+                    ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 6 + Math.sin(t*10)*1.5;
+                    ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 14;
+                    ctx.beginPath(); ctx.moveTo(l.x + 16, l.startY); ctx.lineTo(l.x + 16, endY); ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2; ctx.shadowBlur = 0;
+                    ctx.beginPath(); ctx.moveTo(l.x + 16, l.startY); ctx.lineTo(l.x + 16, endY); ctx.stroke();
+                    ctx.fillStyle = '#f43f5e'; ctx.beginPath(); ctx.arc(l.x+16, l.startY, 5, 0, 7); ctx.fill();
+                    ctx.restore();
+                }
+            });
+
+            // Saws
+            activeSaws.forEach(s => {
+                ctx.save();
+                ctx.translate(s.x + 16, s.y + 16); ctx.rotate(s.angle);
+                ctx.fillStyle = '#cbd5e1';
+                ctx.beginPath();
+                for (let i = 0; i < 12; i++) { const a = (i/12)*Math.PI*2; const rr = i%2===0?15:11; ctx.lineTo(Math.cos(a)*rr, Math.sin(a)*rr); }
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.fill();
+                ctx.strokeStyle = '#334155'; ctx.lineWidth = 1; ctx.stroke();
+                ctx.restore();
+            });
+
+            // Slimes animados
+            activeSlimes.forEach(s => {
+                if (!s.alive) return;
+                const wob = Math.sin(Date.now()/150 + s.x) * 2;
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath(); ctx.ellipse(s.x + s.width/2, s.y + s.height + 2, s.width/2, 4, 0, 0, 7); ctx.fill();
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath(); ctx.roundRect(s.x, s.y - wob, s.width, s.height + wob, [10,10,6,6]); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.roundRect(s.x+4, s.y-wob+3, s.width-14, 5, 4); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x+8, s.y+6-wob,3.5,0,7); ctx.arc(s.x+20,s.y+6-wob,3.5,0,7); ctx.fill();
+                ctx.fillStyle = '#064e3b'; ctx.beginPath(); ctx.arc(s.x+9, s.y+7-wob,1.6,0,7); ctx.arc(s.x+21,s.y+7-wob,1.6,0,7); ctx.fill();
+            });
+
+            // Ghosts
+            activeGhosts.forEach(g => {
+                if (!g.alive) return;
+                ctx.save(); ctx.globalAlpha = 0.85 + Math.sin(Date.now()/200)*0.1;
+                ctx.fillStyle = '#fff'; ctx.shadowColor='#c4b5fd'; ctx.shadowBlur=12;
+                ctx.beginPath(); ctx.arc(g.x+12, g.y+12, 12, Math.PI, 0); ctx.lineTo(g.x+24, g.y+24);
+                for (let i=3;i>=0;i--){ ctx.lineTo(g.x + i*8, g.y+24 + (i%2?4:0)); } ctx.closePath(); ctx.fill();
+                ctx.shadowBlur=0; ctx.fillStyle='#1e1b2e';
+                ctx.beginPath(); ctx.arc(g.x+8,g.y+10,2.5,0,7); ctx.arc(g.x+16,g.y+10,2.5,0,7); ctx.fill();
+                ctx.restore();
+            });
+
+            // Stars con brillo
+            activeStars.forEach(s => {
+                if (s.collected) return;
+                const bob = Math.sin(Date.now()/250 + s.x)*3;
+                ctx.save(); ctx.shadowColor='#fde047'; ctx.shadowBlur=12;
+                ctx.font = '22px serif'; ctx.textAlign='center';
+                ctx.fillText('⭐', s.x + TILE_SIZE/2, s.y + 24 + bob);
+                ctx.restore();
+            });
+
+            // Doors (quiz)
+            activeDoors.forEach(d => {
+                if (!d.isOpen) {
+                    const grad = ctx.createLinearGradient(d.x,d.y,d.x,d.y+TILE_SIZE);
+                    grad.addColorStop(0,'#f472b6'); grad.addColorStop(1,'#be185d');
+                    ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(d.x+2,d.y,TILE_SIZE-4,TILE_SIZE,[6,6,0,0]); ctx.fill();
+                    ctx.font='16px serif'; ctx.textAlign='center'; ctx.fillText('💗', d.x+TILE_SIZE/2, d.y+22);
+                }
+            });
+
+            // Portal animado
+            drawPortalFancy(ctx, t);
+
+            // Extras detrás de jugadores
+            drawWorldExtras(ctx);
+
+            // Boxes
+            activeBoxes.forEach(b => b.draw(ctx));
+
+            // Players
+            p1.draw(ctx);
+            p2.draw(ctx);
+
+            // Overlay world (escudo, lazo, partículas, UI del jefe)
+            drawOverlayExtras(ctx);
+
+            ctx.restore();  // fin camera shake
+
+            // Barra de progreso del nivel (útil en mapas grandes con scroll)
+            if (levelPixelW > VIEW_W + 8 && p1 && p2) {
+                const bw = 220, bx = canvas.width/2 - bw/2, by = 10;
+                ctx.save();
+                ctx.fillStyle = 'rgba(0,0,0,0.45)';
+                ctx.beginPath(); ctx.roundRect(bx-4, by-3, bw+24, 12, 6); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(bx, by, bw, 5);
+                const prog = Math.max(0, Math.min(1, ((p1.x + p2.x)/2) / (levelPixelW - 40)));
+                ctx.fillStyle = '#34d399'; ctx.fillRect(bx, by, bw*prog, 5);
+                // marcadores de jugadores
+                ctx.fillStyle = '#f43f5e'; ctx.fillRect(bx + bw*Math.min(1,p1.x/(levelPixelW-40)) - 1, by-2, 2, 9);
+                ctx.fillStyle = '#38bdf8'; ctx.fillRect(bx + bw*Math.min(1,p2.x/(levelPixelW-40)) - 1, by-2, 2, 9);
+                ctx.font = '11px serif'; ctx.fillText('🏁', bx + bw + 3, by + 8);
+                ctx.restore();
+            }
+
+            // UI en espacio de pantalla (no se agita)
+            drawLevelIntro(ctx);
+            if (levelFlashT > 0) {
+                ctx.fillStyle = `rgba(255,255,255,${(levelFlashT/30)*0.6})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        let currentActiveDoor = null;
+        let quizState = { question: null, p1Choice: null, p2Choice: null };
+
+        function triggerQuizModal(door) {
+            if (quizState.question) return;
+            currentActiveDoor = door;
+            gameState.isPaused = true;
+
+            const qIndex = Math.floor(Math.random() * gameState.questions.length);
+            quizState.question = gameState.questions[qIndex];
+            quizState.p1Choice = null;
+            quizState.p2Choice = null;
+
+            document.getElementById('quiz-modal-q').innerText = quizState.question.q;
+            renderQuizModalPhase();
+            document.getElementById('quiz-modal').classList.remove('hidden');
+        }
+
+        function renderQuizModalPhase() {
+            const optionsContainer = document.getElementById('quiz-modal-options');
+            const turnBanner = document.getElementById('quiz-modal-turn');
+            optionsContainer.innerHTML = '';
+
+            if (quizState.p1Choice === null) {
+                turnBanner.innerText = `Turno de: ${gameState.players[0].name} (Elige en secreto)`;
+                turnBanner.className = "bg-rose-600 text-white text-xs font-bold p-2 rounded-xl mb-4";
+
+                quizState.question.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "p-3 rounded-xl border border-white/20 hover:border-rose-500 bg-black/40 text-white font-bold text-xs transition text-left";
+                    btn.innerText = `${String.fromCharCode(65 + idx)}. ${opt}`;
+                    btn.onclick = () => {
+                        quizState.p1Choice = idx;
+                        renderQuizModalPhase();
+                    };
+                    optionsContainer.appendChild(btn);
+                });
+            } else if (quizState.p2Choice === null) {
+                turnBanner.innerText = `Turno de: ${gameState.players[1].name} (Pásenle el juego para adivinar)`;
+                turnBanner.className = "bg-sky-600 text-white text-xs font-bold p-2 rounded-xl mb-4";
+
+                quizState.question.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "p-3 rounded-xl border border-white/20 hover:border-sky-500 bg-black/40 text-white font-bold text-xs transition text-left";
+                    btn.innerText = `${String.fromCharCode(65 + idx)}. ${opt}`;
+                    btn.onclick = () => {
+                        quizState.p2Choice = idx;
+                        evaluateQuizAnswer();
+                    };
+                    optionsContainer.appendChild(btn);
+                });
+            }
+        }
+
+        function evaluateQuizAnswer() {
+            document.getElementById('quiz-modal').classList.add('hidden');
+            gameState.isPaused = false;
+
+            if (quizState.p1Choice === quizState.p2Choice) {
+                sndUnlock();
+                triggerConfetti();
+                if (currentActiveDoor) currentActiveDoor.isOpen = true;
+                showInGameBanner("🎉 ¡Sintonía Perfecta! La puerta se abrió.");
+            } else {
+                showInGameBanner("😅 Vuelvan a intentarlo en la puerta...");
+            }
+
+            quizState.question = null;
+            currentActiveDoor = null;
+        }
+
+        function showInGameBanner(msg) {
+            const b = document.getElementById('game-banner');
+            b.innerText = msg;
+            b.classList.remove('hidden');
+            setTimeout(() => b.classList.add('hidden'), 2800);
+            if (net.mode === 'host') netSend({ t: 'ban', m: msg });
+        }
+
+        let levelCompleting = false;
+        function completeLevel() {
+            if (levelCompleting) return;
+            levelCompleting = true;
+            gameState.isPaused = true;   // congela la física un instante
+            sndVictory();
+            triggerConfetti();
+            levelFlashT = 30;
+            addShake(6);
+
+            let starsEarned = 1;
+            if (collectedStarsCount > 0) starsEarned = 2;
+            if (collectedStarsCount >= totalStars && totalStars > 0) starsEarned = 3;
+
+            const idx = gameState.currentLevelIdx;
+            gameState.levelStars[idx] = Math.max(gameState.levelStars[idx] || 0, starsEarned);
+            gameState.score += 500 + starsEarned * 100 + gameState.lives * 50;
+            gameState.unlockedLevel = Math.max(gameState.unlockedLevel, Math.min(idx + 1, LEVEL_MAPS.length - 1));
+            saveProgress();
+            updateScoreHud();
+
+            if (net.mode === 'host') netSend({ t: 'done', idx: idx, stars: starsEarned, score: gameState.score });
+
+            if (idx < LEVEL_MAPS.length - 1) {
+                showInGameBanner(`🎉 ¡Nivel Completado! Obtuvieron ${starsEarned} ⭐`);
+                setTimeout(() => { levelCompleting = false; gameState.isPaused = false; loadLevel(idx + 1); }, 1600);
+            } else {
+                setTimeout(() => { levelCompleting = false; gameState.isPaused = false; showVictoryCertificate(); }, 1200);
+            }
+        }
+
+        function showVictoryCertificate() {
+            document.getElementById('cert-couple-names').innerText = `${gameState.players[0].name} & ${gameState.players[1].name}`;
+            if (net.mode === 'host') netSend({ t: 'view', v: 'victory' });
+            switchView('victory');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            keyState[e.code] = true;
+            keyState[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keyState[e.code] = false;
+            keyState[e.key] = false;
+        });
+
+        function setupTouchControls() {
+            const bindTouch = (btnId, targetObj, keyProp) => {
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+
+                const startHandler = (e) => {
+                    e.preventDefault();
+                    initAudio();
+                    targetObj[keyProp] = true;
+                };
+                const endHandler = (e) => {
+                    e.preventDefault();
+                    targetObj[keyProp] = false;
+                };
+
+                btn.addEventListener('touchstart', startHandler);
+                btn.addEventListener('touchend', endHandler);
+                btn.addEventListener('mousedown', startHandler);
+                btn.addEventListener('mouseup', endHandler);
+            };
+
+            bindTouch('btn-p1-left', touchP1, 'left');
+            bindTouch('btn-p1-right', touchP1, 'right');
+            bindTouch('btn-p1-jump', touchP1, 'jump');
+            bindTouch('btn-p1-down', touchP1, 'down');
+
+            bindTouch('btn-p2-left', touchP2, 'left');
+            bindTouch('btn-p2-right', touchP2, 'right');
+            bindTouch('btn-p2-jump', touchP2, 'jump');
+            bindTouch('btn-p2-down', touchP2, 'down');
+        }
+
+        function switchView(viewId) {
+            initAudio();
+            ['menu', 'levels', 'customizer', 'game', 'victory', 'gallery'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.add('hidden');
+            });
+
+            // Detener el bucle si salimos del juego (evita simular en segundo plano)
+            if (viewId !== 'game' && animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+
+            if (viewId === 'levels') renderLevelsMap();
+            if (viewId === 'customizer') renderCustomizer();
+            if (viewId === 'gallery') renderGallery();
+            if (viewId === 'menu') refreshMenuStats();
+            if (viewId === 'game') startGameLoop();
+        }
+
+        function renderLevelsMap() {
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+
+            LEVEL_MAPS.forEach((lvl, idx) => {
+                const stars = gameState.levelStars[idx] || 0;
+                const isUnlocked = idx === 0 || idx <= gameState.unlockedLevel || (gameState.levelStars[idx - 1] > 0);
+                const isBoss = !!LEVEL_MAPS[idx].boss;
+
+                const card = document.createElement('div');
+                card.className = `glass-panel p-5 rounded-2xl flex flex-col justify-between border ${isUnlocked ? 'border-rose-500/40 hover:border-rose-400 cursor-pointer' : 'border-gray-800 opacity-50'}`;
+                
+                let starsHtml = '';
+                for (let s = 1; s <= 3; s++) {
+                    starsHtml += `<i class="fa-solid fa-star ${s <= stars ? 'text-yellow-400' : 'text-gray-600'}"></i>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-300 flex items-center justify-center font-extrabold text-xs">#${idx + 1}</span>
+                        <div class="flex gap-1 text-xs">${starsHtml}</div>
+                    </div>
+                    <h4 class="font-extrabold text-white text-xs mb-2">${lvl.name}</h4>
+                    ${isBoss ? '<span class="inline-block mb-3 px-2 py-0.5 rounded-lg bg-purple-600/30 text-purple-200 text-[9px] font-extrabold uppercase tracking-wider">👹 Jefe Final</span>' : ''}
+                    <button ${isUnlocked ? `onclick="startGame(${idx + 1})"` : 'disabled'} class="w-full ${isUnlocked ? 'btn-action text-white' : 'bg-gray-800 text-gray-500'} font-bold py-2 rounded-xl text-xs">
+                        ${isUnlocked ? (isBoss ? 'Enfrentar Jefe' : 'Jugar Nivel') : 'Bloqueado 🔒'}
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function startGame(levelNum) {
+            gameState.lives = 5;
+            loadLevel(levelNum - 1);
+            switchView('game');
+        }
+
+        function togglePauseModal() {
+            gameState.isPaused = !gameState.isPaused;
+            document.getElementById('pause-modal').classList.toggle('hidden', !gameState.isPaused);
+        }
+
+        function restartCurrentLevel() {
+            togglePauseModal();
+            loadLevel(gameState.currentLevelIdx);
+        }
+
+        function switchCustomTab(tab) {
+            ['players', 'questions'].forEach(t => {
+                document.getElementById(`custom-sec-${t}`).classList.add('hidden');
+                const btn = document.getElementById(`custom-tab-btn-${t}`);
+                btn.classList.remove('bg-rose-600', 'text-white');
+                btn.classList.add('text-gray-400');
+            });
+
+            document.getElementById(`custom-sec-${tab}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`custom-tab-btn-${tab}`);
+            activeBtn.classList.add('bg-rose-600', 'text-white');
+        }
+
+        function renderCustomizer() {
+            document.getElementById('edit-p1-name').value = gameState.players[0].name;
+            document.getElementById('edit-p1-avatar').value = gameState.players[0].avatar;
+            document.getElementById('edit-p2-name').value = gameState.players[1].name;
+            document.getElementById('edit-p2-avatar').value = gameState.players[1].avatar;
+
+            const qList = document.getElementById('custom-questions-list');
+            qList.innerHTML = '';
+            gameState.questions.forEach((q, idx) => {
+                const item = document.createElement('div');
+                item.className = "bg-black/40 p-3 rounded-xl border border-white/10 flex items-center justify-between text-xs";
+                item.innerHTML = `
+                    <span class="font-bold text-gray-300 truncate max-w-[80%]">${idx + 1}. ${q.q}</span>
+                    <button onclick="removeQuestion(${idx})" class="text-rose-400 font-bold p-1"><i class="fa-solid fa-trash"></i></button>
+                `;
+                qList.appendChild(item);
+            });
+        }
+
+        function savePlayerSettings() {
+            gameState.players[0].name = document.getElementById('edit-p1-name').value || "Jugador 1";
+            gameState.players[0].avatar = document.getElementById('edit-p1-avatar').value;
+            gameState.players[1].name = document.getElementById('edit-p2-name').value || "Jugador 2";
+            gameState.players[1].avatar = document.getElementById('edit-p2-avatar').value;
+
+            document.getElementById('menu-p1-name').innerText = gameState.players[0].name;
+            document.getElementById('menu-p1-avatar').innerText = gameState.players[0].avatar;
+            document.getElementById('menu-p2-name').innerText = gameState.players[1].name;
+            document.getElementById('menu-p2-avatar').innerText = gameState.players[1].avatar;
+
+            showInGameBanner("✅ ¡Ajustes guardados!");
+        }
+
+        function addCustomQuestion() {
+            const q = document.getElementById('new-q-text').value.trim();
+            const o1 = document.getElementById('new-q-opt1').value.trim();
+            const o2 = document.getElementById('new-q-opt2').value.trim();
+            const o3 = document.getElementById('new-q-opt3').value.trim();
+            const o4 = document.getElementById('new-q-opt4').value.trim();
+
+            if (!q || !o1 || !o2) {
+                showInGameBanner("Escribe la pregunta y al menos dos opciones.");
+                return;
+            }
+
+            const options = [o1, o2];
+            if (o3) options.push(o3);
+            if (o4) options.push(o4);
+
+            gameState.questions.push({ q, options });
+            safeSet('lq_questions_v2', JSON.stringify(gameState.questions));
+
+            document.getElementById('new-q-text').value = '';
+            document.getElementById('new-q-opt1').value = '';
+            document.getElementById('new-q-opt2').value = '';
+            document.getElementById('new-q-opt3').value = '';
+            document.getElementById('new-q-opt4').value = '';
+
+            renderCustomizer();
+        }
+
+        function removeQuestion(idx) {
+            gameState.questions.splice(idx, 1);
+            safeSet('lq_questions_v2', JSON.stringify(gameState.questions));
+            renderCustomizer();
+        }
+
+        function initBackgroundHearts() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const hearts = [];
+            for (let i = 0; i < 25; i++) {
+                hearts.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 10 + 6,
+                    speedY: Math.random() * 0.5 + 0.2,
+                    opacity: Math.random() * 0.3 + 0.1
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                hearts.forEach(h => {
+                    h.y -= h.speedY;
+                    if (h.y < -20) {
+                        h.y = canvas.height + 20;
+                        h.x = Math.random() * canvas.width;
+                    }
+                    ctx.save();
+                    ctx.globalAlpha = h.opacity;
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.font = `${h.size}px serif`;
+                    ctx.fillText('❤️', h.x, h.y);
+                    ctx.restore();
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#f43f5e', '#ed3865', '#0284c7', '#facc15', '#a855f7'];
+
+            for (let i = 0; i < 70; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 14,
+                    vy: (Math.random() - 0.5) * 14 - 4,
+                    size: Math.random() * 6 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 90
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.2;
+                        p.life--;
+
+                        ctx.save();
+                        ctx.globalAlpha = p.life / 90;
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                });
+                if (alive) requestAnimationFrame(animateConfetti);
+            }
+            animateConfetti();
+        }
+
+        window.onload = function() {
+            initBackgroundHearts();
+            setupTouchControls();
+        };
+    </script>
+
+    <!-- ============================================================= -->
+    <!-- ==============  MEJORAS AVANZADAS (v2)  ====================== -->
+    <!-- Habilidades · Jefe final · Recuerdos · Gamepads · Online ===== -->
+    <!-- ============================================================= -->
+    <script>
+    /* ---------- Estado global de mejoras ---------- */
+    let inputP1 = { left:false, right:false, jump:false, jumpEdge:false, ab1:false, ab1Edge:false };
+    let inputP2 = { left:false, right:false, jump:false, jumpEdge:false, ab1:false, ab1Edge:false, ab2:false, ab2Edge:false };
+    let _prev = { p1jump:false, p1ab1:false, p2jump:false, p2ab1:false, p2ab2:false };
+
+    let abilities = {
+        p1_doubleJump: { cd:0, cdMax:180 },  // 3.0s
+        p1_lasso:      { cd:0, cdMax:420 },  // 7.0s
+        p2_shield:     { cd:0, cdMax:540 },  // 9.0s
+        p2_platform:   { cd:0, cdMax:480 }   // 8.0s
+    };
+    let shieldState = { active:0, max:180 };  // escudo dura 3s
+    let activeTempPlatforms = [];
+    let particles = [];
+    let lassoVisual = null;
+    let activeMemories = [];
+    let activeBoss = null;
+
+    /* ---------- Definición de Recuerdos ---------- */
+    const MEMORIES = [
+        { icon:'📸', title:'Primera Foto',      msg:'La primera foto que nos tomamos juntos — salimos medio borrosos de tanto reír.' },
+        { icon:'💌', title:'Carta Secreta',     msg:'“Me gustas desde antes de atreverme a decírtelo.” La nota que guardé por meses.' },
+        { icon:'🎟️', title:'Primera Cita',      msg:'El ticket de nuestra primera película. No recuerdo la trama, solo tu mano en la mía.' },
+        { icon:'🌙', title:'Noche de Estrellas', msg:'Esa madrugada contando estrellas y prometiéndonos mil aventuras más.' },
+        { icon:'🔑', title:'Nuestro Lugar',     msg:'La llave de nuestro primer rincón favorito, donde el tiempo se detenía.' },
+        { icon:'💍', title:'Para Siempre',      msg:'Pase lo que pase, tú y yo, siempre equipo. Gracias por elegirme cada día. ❤️' }
+    ];
+    /* MEMORY_SPOTS ahora se deriva de los niveles compilados (ver arriba). */
+
+    /* ---------- Red (PeerJS) ---------- */
+    let net = { mode:'local', peer:null, conn:null, remoteInput:null, _bc:0, connected:false, lastSnap:null };
+
+    /* ============================================================= */
+    /*  ENTRADA UNIFICADA (teclado + táctil + gamepad + remoto)       */
+    /* ============================================================= */
+    function getPadsSafe(){
+        try { return navigator.getGamepads ? (navigator.getGamepads() || []) : []; }
+        catch(e){ return []; }   // iframes con permissions-policy restrictivo lanzan SecurityError
+    }
+    function readGamepad(idx){
+        const pads = getPadsSafe();
+        const gp = pads && pads[idx];
+        if (!gp) return null;
+        const ax = gp.axes[0] || 0;
+        const btn = (i)=> gp.buttons[i] && gp.buttons[i].pressed;
+        return {
+            left:  ax < -0.35 || btn(14),
+            right: ax >  0.35 || btn(15),
+            jump:  btn(0) || btn(12),      // A o Dpad-Up
+            ab1:   btn(2) || btn(5) || btn(7), // X / RB / RT
+            ab2:   btn(3) || btn(1)        // Y / B
+        };
+    }
+    function anyGamepad(){
+        const pads = getPadsSafe();
+        for (let i=0;i<pads.length;i++) if (pads[i]) return true;
+        return false;
+    }
+    function schemeInput(scheme){
+        const K = keyState;
+        if (scheme === 'p1'){
+            const g = readGamepad(0) || {};
+            return {
+                left:  K['KeyA']||K['a']||touchP1.left||g.left||false,
+                right: K['KeyD']||K['d']||touchP1.right||g.right||false,
+                jump:  K['KeyW']||K['w']||K['Space']||touchP1.jump||g.jump||false,
+                ab1:   K['KeyF']||K['f']||touchP1.ability1||g.ab1||false
+            };
+        }
+        if (scheme === 'p2'){
+            const g = readGamepad(1) || {};
+            return {
+                left:  K['ArrowLeft']||touchP2.left||g.left||false,
+                right: K['ArrowRight']||touchP2.right||g.right||false,
+                jump:  K['ArrowUp']||touchP2.jump||g.jump||false,
+                ab1:   K['KeyL']||K['l']||touchP2.ability1||g.ab1||false,
+                ab2:   K['KeyP']||K['p']||touchP2.ability2||g.ab2||false
+            };
+        }
+        // 'client' : una sola persona controla a P2 con cualquier tecla/mando
+        const g0 = readGamepad(0) || {};
+        return {
+            left:  K['ArrowLeft']||K['KeyA']||K['a']||touchP2.left||touchP1.left||g0.left||false,
+            right: K['ArrowRight']||K['KeyD']||K['d']||touchP2.right||touchP1.right||g0.right||false,
+            jump:  K['ArrowUp']||K['KeyW']||K['w']||K['Space']||touchP2.jump||touchP1.jump||g0.jump||false,
+            ab1:   K['KeyL']||K['l']||K['KeyF']||K['f']||touchP2.ability1||g0.ab1||false,
+            ab2:   K['KeyP']||K['p']||touchP2.ability2||g0.ab2||false
+        };
+    }
+    function gatherInputs(){
+        const a = schemeInput('p1');
+        let b;
+        if (net.mode === 'host'){
+            b = net.remoteInput || { left:false,right:false,jump:false,ab1:false,ab2:false };
+        } else {
+            b = schemeInput('p2');
+        }
+        inputP1.left=a.left; inputP1.right=a.right; inputP1.jump=a.jump;
+        inputP1.jumpEdge = a.jump && !_prev.p1jump; _prev.p1jump=a.jump;
+        inputP1.ab1=a.ab1; inputP1.ab1Edge = a.ab1 && !_prev.p1ab1; _prev.p1ab1=a.ab1;
+
+        inputP2.left=b.left; inputP2.right=b.right; inputP2.jump=b.jump;
+        inputP2.jumpEdge = b.jump && !_prev.p2jump; _prev.p2jump=b.jump;
+        inputP2.ab1=b.ab1; inputP2.ab1Edge = b.ab1 && !_prev.p2ab1; _prev.p2ab1=b.ab1;
+        inputP2.ab2=b.ab2; inputP2.ab2Edge = b.ab2 && !_prev.p2ab2; _prev.p2ab2=b.ab2;
+
+        // Indicador de gamepad en HUD
+        const gpBadge = document.getElementById('hud-gamepad-badge');
+        if (gpBadge) gpBadge.classList.toggle('hidden', !anyGamepad());
+        const onBadge = document.getElementById('hud-online-badge');
+        if (onBadge) onBadge.classList.toggle('hidden', net.mode === 'local');
+    }
+
+    /* ============================================================= */
+    /*  HABILIDADES                                                   */
+    /* ============================================================= */
+    function resetAbilities(){
+        abilities.p1_doubleJump.cd = 0;
+        abilities.p1_lasso.cd = 0;
+        abilities.p2_shield.cd = 0;
+        abilities.p2_platform.cd = 0;
+        shieldState.active = 0;
+    }
+    function tickAbilities(){
+        for (const k in abilities) if (abilities[k].cd > 0) abilities[k].cd--;
+        if (shieldState.active > 0) shieldState.active--;
+
+        // P1 — Lazo de Energía (jala a P2 hacia P1)
+        if (inputP1.ab1Edge && abilities.p1_lasso.cd <= 0 && p1.isAlive){
+            doLasso();
+            abilities.p1_lasso.cd = abilities.p1_lasso.cdMax;
+        }
+        // P2 — Escudo Protector
+        if (inputP2.ab1Edge && abilities.p2_shield.cd <= 0){
+            shieldState.active = shieldState.max;
+            abilities.p2_shield.cd = abilities.p2_shield.cdMax;
+            sndUnlock();
+            spawnBurst(p1.x+p1.width/2, p1.y+p1.height/2, '#38bdf8');
+            spawnBurst(p2.x+p2.width/2, p2.y+p2.height/2, '#38bdf8');
+            showInGameBanner('🛡️ ¡Escudo Protector activo!');
+        }
+        // P2 — Plataforma Temporal
+        if (inputP2.ab2Edge && abilities.p2_platform.cd <= 0 && p2.isAlive){
+            const px = p2.x - 8 + (p2.facing > 0 ? 10 : -10);
+            activeTempPlatforms.push({
+                x: Math.max(TILE_SIZE, px),
+                y: p2.y + p2.height + 4,
+                width: TILE_SIZE * 2, height: 12, life: 300
+            });
+            abilities.p2_platform.cd = abilities.p2_platform.cdMax;
+            sndSwitch();
+            showInGameBanner('🟦 ¡Plataforma creada!');
+        }
+
+        // Vida de plataformas temporales
+        for (let i = activeTempPlatforms.length - 1; i >= 0; i--){
+            activeTempPlatforms[i].life--;
+            if (activeTempPlatforms[i].life <= 0) activeTempPlatforms.splice(i, 1);
+        }
+        if (lassoVisual){ lassoVisual.life--; if (lassoVisual.life <= 0) lassoVisual = null; }
+    }
+    function doLasso(){
+        if (!p2.isAlive){
+            // Si P2 está fuera, el lazo lo revive junto a P1
+            p2.isAlive = true;
+        }
+        const fromX = p2.x + p2.width/2, fromY = p2.y + p2.height/2;
+        p2.x = p1.x + (p1.facing > 0 ? -30 : p1.width + 6);
+        p2.y = p1.y;
+        p2.vx = 0; p2.vy = -3;
+        p2.jumps = 0;
+        lassoVisual = { x1:p1.x+p1.width/2, y1:p1.y+p1.height/2, x2:fromX, y2:fromY, life:16 };
+        sndPush();
+        spawnBurst(p2.x+p2.width/2, p2.y+p2.height/2, '#f9a8d4');
+    }
+
+    /* ============================================================= */
+    /*  PARTÍCULAS                                                    */
+    /* ============================================================= */
+    function spawnBurst(x, y, color){
+        for (let i=0;i<12;i++){
+            particles.push({ x, y, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5 - 1.5, life:26, color, size:Math.random()*2+2 });
+        }
+    }
+    function spawnDust(x, y, n, color){
+        for (let i=0;i<n;i++){
+            particles.push({ x:x+(Math.random()-0.5)*12, y:y-2, vx:(Math.random()-0.5)*2.2, vy:-Math.random()*1.5, life:18, color, size:Math.random()*2+1.5, grav:0.04 });
+        }
+    }
+
+    /* ---------- Fondo parallax dentro del canvas ---------- */
+    function drawBackdrop(ctx){
+        const W = canvas.width, H = canvas.height;
+        const g = ctx.createLinearGradient(0,0,0,H);
+        g.addColorStop(0,'#241b45'); g.addColorStop(0.55,'#1b1335'); g.addColorStop(1,'#140d28');
+        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+        // estrellas lejanas (parallax lento con la cámara)
+        ctx.save();
+        for (let i=0;i<48;i++){
+            const sx = (((i*83) - camX*0.2 + bgParallax*0.1) % (W+20) + (W+20)) % (W+20) - 10;
+            const sy = (i*53) % (H*0.7);
+            ctx.globalAlpha = 0.3 + ((i*7)%10)/20;
+            ctx.fillStyle = i%5===0 ? '#f9a8d4' : '#c4b5fd';
+            ctx.fillRect(sx, sy, 2, 2);
+        }
+        ctx.restore();
+        // colinas parallax (se desplazan con la cámara a distinta velocidad)
+        const hill = (color, amp, yBase, par, step) => {
+            ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0,H);
+            for (let x=0;x<=W;x+=step){ const wx = x + camX*par; ctx.lineTo(x, yBase + Math.sin(wx/90)*amp); }
+            ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+        };
+        hill('rgba(76,29,149,0.35)', 18, H*0.62, 0.25, 40);
+        hill('rgba(49,20,99,0.45)', 26, H*0.72, 0.5, 30);
+    }
+
+    /* ---------- Portal animado ---------- */
+    function drawPortalFancy(ctx, t){
+        if (exitPortal.x < 0) return;
+        const cx = exitPortal.x + 16, cy = exitPortal.y + 16;
+        ctx.save();
+        ctx.translate(cx, cy);
+        for (let i=3;i>=1;i--){
+            ctx.rotate(t*2*(i%2?1:-1));
+            ctx.strokeStyle = i%2 ? 'rgba(96,165,250,0.8)' : 'rgba(244,114,182,0.8)';
+            ctx.lineWidth = 3; ctx.shadowColor='#60a5fa'; ctx.shadowBlur=14;
+            ctx.beginPath(); ctx.arc(0,0, 6+i*3, 0, Math.PI*1.5); ctx.stroke();
+        }
+        ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.globalAlpha=0.9;
+        ctx.beginPath(); ctx.arc(0,0,4+Math.sin(t*6)*1.5,0,7); ctx.fill();
+        ctx.restore();
+    }
+
+    /* ---------- Plataformas móviles ---------- */
+    function drawMovers(ctx){
+        activeMovers.forEach(m => {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(m.x+3, m.y+m.height, m.width-6, 4);
+            const g = ctx.createLinearGradient(0,m.y,0,m.y+m.height);
+            g.addColorStop(0,'#fcd34d'); g.addColorStop(1,'#b45309');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(m.x, m.y, m.width, m.height, 5); ctx.fill();
+            ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.stroke();
+            // rieles/flechas
+            ctx.fillStyle='rgba(0,0,0,0.3)';
+            for (let i=8;i<m.width-6;i+=14){ ctx.fillRect(m.x+i, m.y+5, 6, 3); }
+            ctx.restore();
+        });
+    }
+
+    /* ---------- Resortes ---------- */
+    function drawSprings(ctx){
+        activeSprings.forEach(s => {
+            const compressed = s.t > 0;
+            const topY = s.y - (compressed ? 2 : 8);
+            ctx.save();
+            ctx.fillStyle = '#9ca3af'; ctx.fillRect(s.x+6, s.y+6, TILE_SIZE-12, 6);     // base
+            ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3;
+            ctx.beginPath();
+            const coils = 4;
+            for (let i=0;i<=coils;i++){ const yy = s.y+6 - (i/coils)*((s.y+6)-topY); ctx.lineTo(s.x + (i%2?8:TILE_SIZE-8), yy); }
+            ctx.stroke();
+            ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.roundRect(s.x+4, topY-4, TILE_SIZE-8, 6, 3); ctx.fill();
+            ctx.restore();
+        });
+    }
+
+    /* ---------- Cintas transportadoras ---------- */
+    function drawConveyors(ctx){
+        const t = bgParallax;
+        activeConveyors.forEach(cv => {
+            ctx.save();
+            const g = ctx.createLinearGradient(0, cv.y, 0, cv.y + cv.height);
+            g.addColorStop(0,'#334155'); g.addColorStop(1,'#1e293b');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(cv.x, cv.y, cv.width, cv.height, 5); ctx.fill();
+            ctx.strokeStyle='#64748b'; ctx.lineWidth=1; ctx.stroke();
+            // flechas que se mueven en la dirección
+            ctx.fillStyle = '#38bdf8';
+            const off = ((t * cv.dir * 2) % 20 + 20) % 20;
+            for (let x = cv.x - 20 + off; x < cv.x + cv.width; x += 20) {
+                const ax = x + (cv.dir>0?0:10);
+                if (ax < cv.x+2 || ax > cv.x+cv.width-10) continue;
+                ctx.beginPath();
+                if (cv.dir>0){ ctx.moveTo(ax, cv.y+3); ctx.lineTo(ax+7, cv.y+cv.height/2); ctx.lineTo(ax, cv.y+cv.height-3); }
+                else { ctx.moveTo(ax+7, cv.y+3); ctx.lineTo(ax, cv.y+cv.height/2); ctx.lineTo(ax+7, cv.y+cv.height-3); }
+                ctx.fill();
+            }
+            ctx.restore();
+        });
+    }
+
+    /* ---------- Plataformas que se desmoronan ---------- */
+    function drawFallers(ctx){
+        activeFallers.forEach(fp => {
+            if (fp.state === 'gone') {
+                // marca tenue de dónde reaparecerá
+                ctx.save(); ctx.globalAlpha = 0.18; ctx.setLineDash([4,4]);
+                ctx.strokeStyle = '#a16207'; ctx.strokeRect(fp.x+2, fp.y, fp.width-4, fp.height); ctx.restore();
+                return;
+            }
+            ctx.save();
+            const shake = fp.state === 'shaking' ? (Math.random()-0.5) * 3 : 0;
+            ctx.translate(shake, 0);
+            const g = ctx.createLinearGradient(0, fp.y, 0, fp.y+fp.height);
+            g.addColorStop(0, fp.state==='shaking' ? '#f59e0b' : '#ca8a04'); g.addColorStop(1,'#78350f');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(fp.x, fp.y, fp.width, fp.height, 4); ctx.fill();
+            ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=1; ctx.stroke();
+            // grietas
+            ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=1.5;
+            for (let i=1;i<fp.width/TILE_SIZE*2;i++){ const cx=fp.x+i*(fp.width/(fp.width/TILE_SIZE*2)); ctx.beginPath(); ctx.moveTo(cx, fp.y); ctx.lineTo(cx-3, fp.y+fp.height); ctx.stroke(); }
+            ctx.restore();
+        });
+    }
+
+    /* ---------- Teletransportadores ---------- */
+    function drawTeleporters(ctx){
+        const t = Date.now()/400;
+        activeTeleporters.forEach(tp => {
+            const cx = tp.x+16, cy = tp.y+16;
+            const col = (tp.id % 2 === 0) ? '167,139,250' : '45,212,191';
+            ctx.save(); ctx.translate(cx, cy);
+            ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth=3; ctx.shadowColor=`rgb(${col})`; ctx.shadowBlur=12;
+            for (let i=0;i<2;i++){ ctx.rotate(t*(i?1:-1)); ctx.beginPath(); ctx.ellipse(0,0,13,6+i*3,0,0,Math.PI*2); ctx.stroke(); }
+            ctx.shadowBlur=0; ctx.fillStyle=`rgba(${col},0.35)`; ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.fill();
+            ctx.restore();
+        });
+    }
+
+    /* ---------- Barreras de color (co-op) ---------- */
+    function drawBarriers(ctx){
+        const t = Date.now()/200;
+        activeBarriers.forEach(b => {
+            const col = b.color === 'pink' ? '244,114,182' : '56,189,248';
+            ctx.save();
+            ctx.fillStyle = `rgba(${col},${0.18 + Math.sin(t)*0.05})`;
+            ctx.fillRect(b.x+6, b.y, b.width-12, b.height);
+            ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
+            ctx.setLineDash([6,5]); ctx.lineDashOffset = -bgParallax*2;
+            ctx.strokeRect(b.x+6, b.y, b.width-12, b.height);
+            ctx.setLineDash([]);
+            // iconos de color
+            ctx.fillStyle = `rgba(${col},0.9)`; ctx.font='12px serif'; ctx.textAlign='center';
+            for (let yy=b.y+14; yy<b.y+b.height; yy+=28){ ctx.fillText(b.color==='pink'?'♀':'♂', b.x+16, yy); }
+            ctx.restore();
+        });
+    }
+
+    /* ---------- Tarjeta de intro de nivel ---------- */
+    function drawLevelIntro(ctx){
+        if (levelIntroT <= 0) return;
+        const W = canvas.width, H = canvas.height;
+        const p = levelIntroT / 150;                 // 1 -> 0
+        const slide = (p > 0.8) ? (p-0.8)/0.2 : (p < 0.2 ? p/0.2 : 1);  // in/out
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, slide);
+        ctx.fillStyle = 'rgba(15,10,30,0.82)';
+        const bh = 96, by = H/2 - bh/2;
+        ctx.fillRect(0, by, W, bh);
+        ctx.fillStyle = '#f9a8d4'; ctx.fillRect(0, by, W, 3); ctx.fillRect(0, by+bh-3, W, 3);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 26px Fredoka, sans-serif';
+        const nm = (LEVEL_MAPS[gameState.currentLevelIdx]||{}).name || '';
+        ctx.fillText(nm, W/2, by + 40);
+        ctx.fillStyle = '#a7f3d0'; ctx.font = 'bold 14px Nunito, sans-serif';
+        ctx.fillText('🎯 ' + currentObjective, W/2, by + 68);
+        ctx.restore();
+    }
+    function updateParticles(){
+        for (let i=particles.length-1;i>=0;i--){
+            const p = particles[i];
+            p.x += p.vx; p.y += p.vy; p.vy += (p.grav!=null?p.grav:0.15); p.life--;
+            if (p.life <= 0) particles.splice(i,1);
+        }
+    }
+
+    /* ============================================================= */
+    /*  RECUERDOS (coleccionables)                                    */
+    /* ============================================================= */
+    function updateMemories(){
+        activeMemories.forEach(m => {
+            if (m.collected) return;
+            if (isAABBColliding(p1, m) || isAABBColliding(p2, m)){
+                m.collected = true;
+                if (!gameState.memories.includes(m.id)) gameState.memories.push(m.id);
+                gameState.score += 150;
+                saveProgress();
+                sndStar();
+                spawnBurst(m.x + TILE_SIZE/2, m.y + TILE_SIZE/2, '#f472b6');
+                const def = MEMORIES[m.id];
+                showInGameBanner(`💌 ¡Recuerdo desbloqueado: ${def ? def.title : ''}!`);
+                document.getElementById('game-mem-count').innerText =
+                    `${activeMemories.filter(x=>x.collected).length}/${activeMemories.length}`;
+                updateScoreHud();
+            }
+        });
+    }
+
+    /* ============================================================= */
+    /*  JEFE FINAL                                                    */
+    /* ============================================================= */
+    let bossDefeatTriggered = false;
+    function setupBoss(cfg){
+        bossDefeatTriggered = false;
+        activeBoss = {
+            cx: 12 * TILE_SIZE, x: 11 * TILE_SIZE, y: 2 * TILE_SIZE,
+            w: 3 * TILE_SIZE, h: 70,
+            hp: cfg.hp, maxHp: cfg.hp,
+            distractRect: { x: cfg.distract.c*TILE_SIZE, y: cfg.distract.r*TILE_SIZE, width:TILE_SIZE, height:TILE_SIZE },
+            chargeRect:   { x: cfg.charge.c*TILE_SIZE,   y: cfg.charge.r*TILE_SIZE,   width:TILE_SIZE, height:TILE_SIZE },
+            distracted:false, charge:0, chargeMax:100,
+            attackTimer:120, projectiles:[], t:0, hitFlash:0, alive:true
+        };
+    }
+    function updateBoss(){
+        const B = activeBoss;
+        if (!B) return;
+        B.t++;
+        if (B.hitFlash > 0) B.hitFlash--;
+
+        // Movimiento flotante
+        B.x = B.cx - B.w/2 + Math.sin(B.t * 0.02) * 90;
+        B.y = 2 * TILE_SIZE + Math.sin(B.t * 0.04) * 10;
+
+        if (!B.alive) return;
+
+        // ¿Distraído? (algún jugador sobre el mecanismo de la izquierda)
+        const onDistract = (p1.isAlive && isAABBColliding(p1, B.distractRect)) ||
+                           (p2.isAlive && isAABBColliding(p2, B.distractRect));
+        B.distracted = onDistract;
+
+        // Carga del superataque (jugador sobre el pad de la derecha)
+        const onCharge = (p1.isAlive && isAABBColliding(p1, B.chargeRect)) ||
+                         (p2.isAlive && isAABBColliding(p2, B.chargeRect));
+        if (onCharge && B.charge < B.chargeMax) B.charge = Math.min(B.chargeMax, B.charge + 0.9);
+
+        // Disparo del superataque: requiere distraer + carga llena (COOPERATIVO)
+        if (B.distracted && B.charge >= B.chargeMax){
+            B.hp--;
+            B.charge = 0;
+            B.hitFlash = 22;
+            sndSquish(); triggerConfetti();
+            spawnBurst(B.x + B.w/2, B.y + B.h/2, '#facc15');
+            if (B.hp <= 0){
+                B.alive = false;
+                showInGameBanner('💔➡️❤️ ¡Derrotaron a la Incomunicación juntos!');
+                if (!bossDefeatTriggered){
+                    bossDefeatTriggered = true;
+                    setTimeout(() => completeLevel(), 1400);
+                }
+            } else {
+                showInGameBanner(`💥 ¡Golpe al jefe! Le quedan ${B.hp} ❤️`);
+            }
+        }
+
+        // Ataques del jefe (solo si NO está distraído)
+        if (!B.distracted && B.alive){
+            B.attackTimer--;
+            if (B.attackTimer <= 0){
+                B.attackTimer = 70;
+                const target = Math.random() < 0.5 ? p1 : p2;
+                const sx = B.x + B.w/2, sy = B.y + B.h;
+                const tx = target.x + target.width/2, ty = target.y;
+                const d = Math.hypot(tx - sx, ty - sy) || 1;
+                const spd = 3.4;
+                B.projectiles.push({ x:sx, y:sy, vx:(tx-sx)/d*spd, vy:(ty-sy)/d*spd, r:10 });
+            }
+        }
+
+        // Proyectiles
+        for (let i = B.projectiles.length - 1; i >= 0; i--){
+            const pr = B.projectiles[i];
+            pr.x += pr.vx; pr.y += pr.vy;
+            const prRect = { x:pr.x - pr.r, y:pr.y - pr.r, width:pr.r*2, height:pr.r*2 };
+            if ((p1.isAlive && isAABBColliding(p1, prRect)) || (p2.isAlive && isAABBColliding(p2, prRect))){
+                killPlayers('¡El Monstruo te golpeó!');
+                B.projectiles.splice(i,1);
+                continue;
+            }
+            if (pr.x < 0 || pr.x > canvas.width || pr.y > canvas.height || pr.y < 0) B.projectiles.splice(i,1);
+        }
+    }
+
+    /* ============================================================= */
+    /*  RENDER DE MEJORAS                                             */
+    /* ============================================================= */
+    function drawWorldExtras(ctx){
+        // Plataformas temporales
+        activeTempPlatforms.forEach(tp => {
+            const a = Math.min(1, tp.life / 60);
+            ctx.save();
+            ctx.globalAlpha = 0.35 + a * 0.5;
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath(); ctx.roundRect(tp.x, tp.y, tp.width, tp.height, 5); ctx.fill();
+            ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
+        });
+
+        // Recuerdos coleccionables
+        activeMemories.forEach(m => {
+            if (m.collected) return;
+            const def = MEMORIES[m.id] || { icon:'💝' };
+            const bob = Math.sin(Date.now()/300 + m.id) * 3;
+            ctx.save();
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = 'rgba(244,114,182,0.25)';
+            ctx.beginPath(); ctx.arc(m.x + TILE_SIZE/2, m.y + TILE_SIZE/2 + bob, 14, 0, Math.PI*2); ctx.fill();
+            ctx.font = '20px serif'; ctx.textAlign = 'center';
+            ctx.fillText(def.icon, m.x + TILE_SIZE/2, m.y + TILE_SIZE/2 + 7 + bob);
+            ctx.restore();
+        });
+
+        // Jefe
+        if (activeBoss) drawBoss(ctx);
+    }
+    function drawBoss(ctx){
+        const B = activeBoss;
+        // Pads (mecanismo distracción + carga)
+        ctx.save();
+        ctx.fillStyle = B.distracted ? '#22c55e' : '#eab308';
+        ctx.fillRect(B.distractRect.x + 2, B.distractRect.y + 22, TILE_SIZE - 4, 10);
+        ctx.fillStyle = '#f472b6';
+        ctx.fillRect(B.chargeRect.x + 2, B.chargeRect.y + 22, TILE_SIZE - 4, 10);
+        ctx.font = '12px serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+        ctx.fillText('🎭', B.distractRect.x + TILE_SIZE/2, B.distractRect.y + 18);
+        ctx.fillText('⚡', B.chargeRect.x + TILE_SIZE/2, B.chargeRect.y + 18);
+        ctx.restore();
+
+        if (!B.alive) return;
+
+        // Cuerpo del monstruo
+        ctx.save();
+        if (B.hitFlash > 0 && B.hitFlash % 4 < 2) ctx.globalAlpha = 0.5;
+        const cx = B.x + B.w/2, cy = B.y + B.h/2;
+        ctx.fillStyle = B.distracted ? '#7c3aed' : '#4c1d95';
+        ctx.beginPath(); ctx.roundRect(B.x, B.y, B.w, B.h, 20); ctx.fill();
+        ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 3; ctx.stroke();
+        // Ojos
+        ctx.fillStyle = B.distracted ? '#fde68a' : '#f43f5e';
+        ctx.beginPath(); ctx.arc(cx - 24, cy - 6, 9, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 24, cy - 6, 9, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#1e1b2e';
+        ctx.beginPath(); ctx.arc(cx - 24, cy - 6, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx + 24, cy - 6, 4, 0, Math.PI*2); ctx.fill();
+        // Boca (candado = incomunicación / sonrisa si distraído)
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath();
+        if (B.distracted) ctx.arc(cx, cy + 14, 12, 0, Math.PI);
+        else ctx.arc(cx, cy + 22, 12, Math.PI, Math.PI*2);
+        ctx.stroke();
+        ctx.font = '16px serif'; ctx.textAlign='center';
+        ctx.fillText(B.distracted ? '😵' : '🔒', cx, cy + 20);
+        ctx.restore();
+
+        // Barra de vida del jefe
+        const barW = 180, barX = cx - barW/2, barY = B.y - 16;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX, barY, barW, 8);
+        ctx.fillStyle = '#f43f5e';
+        ctx.fillRect(barX, barY, barW * (B.hp / B.maxHp), 8);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 8);
+        ctx.restore();
+
+        // Proyectiles
+        B.projectiles.forEach(pr => {
+            ctx.save();
+            ctx.fillStyle = '#f43f5e'; ctx.shadowColor='#f43f5e'; ctx.shadowBlur=10;
+            ctx.font = '18px serif'; ctx.textAlign='center';
+            ctx.fillText('💢', pr.x, pr.y + 6);
+            ctx.restore();
+        });
+    }
+    function drawOverlayExtras(ctx){
+        // Lazo
+        if (lassoVisual){
+            ctx.save();
+            ctx.strokeStyle = '#f9a8d4'; ctx.lineWidth = 3; ctx.setLineDash([6,4]);
+            ctx.beginPath(); ctx.moveTo(lassoVisual.x1, lassoVisual.y1); ctx.lineTo(lassoVisual.x2, lassoVisual.y2); ctx.stroke();
+            ctx.restore();
+        }
+        // Escudo
+        if (shieldState.active > 0){
+            [p1, p2].forEach(p => {
+                if (!p.isAlive) return;
+                ctx.save();
+                ctx.globalAlpha = 0.35 + 0.25 * Math.sin(Date.now()/80);
+                ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(56,189,248,0.15)';
+                ctx.beginPath(); ctx.arc(p.x + p.width/2, p.y + p.height/2, 26, 0, Math.PI*2);
+                ctx.fill(); ctx.stroke();
+                ctx.restore();
+            });
+        }
+        // Barra de carga del superataque (boss)
+        if (activeBoss && activeBoss.alive){
+            const B = activeBoss;
+            const w = 160, x = canvas.width/2 - w/2, y = canvas.height - 18;
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y, w, 10);
+            ctx.fillStyle = B.charge >= B.chargeMax ? '#22c55e' : '#facc15';
+            ctx.fillRect(x, y, w * (B.charge / B.chargeMax), 10);
+            ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(x, y, w, 10);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign='center';
+            ctx.fillText('⚡ SUPERATAQUE ' + (B.distracted ? '(¡DISPARA!)' : '(distrae al jefe →🎭)'), canvas.width/2, y - 4);
+            ctx.restore();
+        }
+        // Partículas
+        particles.forEach(p => {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.life/24);
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size||3, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        });
+    }
+
+    /* ============================================================= */
+    /*  HUD                                                           */
+    /* ============================================================= */
+    function setBar(id, frac, ready){
+        const el = document.getElementById(id); if (!el) return;
+        const fill = el.querySelector('.ab-fill');
+        if (fill) fill.style.width = (Math.max(0, Math.min(1, frac)) * 100) + '%';
+        el.style.opacity = ready ? '1' : '0.5';
+    }
+    function updateAbilityHud(){
+        setBar('ab-p1dj',     1 - abilities.p1_doubleJump.cd / abilities.p1_doubleJump.cdMax, abilities.p1_doubleJump.cd <= 0);
+        setBar('ab-p1lasso',  1 - abilities.p1_lasso.cd / abilities.p1_lasso.cdMax,          abilities.p1_lasso.cd <= 0);
+        const shFrac = shieldState.active > 0 ? 1 : 1 - abilities.p2_shield.cd / abilities.p2_shield.cdMax;
+        setBar('ab-p2shield', shFrac, abilities.p2_shield.cd <= 0 || shieldState.active > 0);
+        setBar('ab-p2plat',   1 - abilities.p2_platform.cd / abilities.p2_platform.cdMax,    abilities.p2_platform.cd <= 0);
+    }
+    function updateScoreHud(){
+        const s = document.getElementById('game-score-count'); if (s) s.innerText = gameState.score;
+    }
+    function refreshMenuStats(){
+        const sc = document.getElementById('menu-score'); if (sc) sc.innerText = gameState.score;
+        const mc = document.getElementById('menu-mem-count'); if (mc) mc.innerText = gameState.memories.length;
+        const mt = document.getElementById('menu-mem-total'); if (mt) mt.innerText = MEMORIES.length;
+        const gp = document.getElementById('menu-gamepad-status');
+        if (gp){
+            if (anyGamepad()){ gp.classList.remove('text-gray-400'); gp.classList.add('text-indigo-300'); gp.innerHTML = '<i class="fa-solid fa-gamepad mr-1"></i> Mando conectado'; }
+            else { gp.classList.add('text-gray-400'); gp.classList.remove('text-indigo-300'); gp.innerHTML = '<i class="fa-solid fa-gamepad mr-1"></i> Sin mandos'; }
+        }
+    }
+
+    /* ============================================================= */
+    /*  GALERÍA DE RECUERDOS                                          */
+    /* ============================================================= */
+    function renderGallery(){
+        const grid = document.getElementById('gallery-grid');
+        grid.innerHTML = '';
+        MEMORIES.forEach((m, idx) => {
+            const unlocked = gameState.memories.includes(idx);
+            const card = document.createElement('div');
+            card.className = `rounded-2xl p-4 border text-center ${unlocked ? 'bg-pink-900/20 border-pink-500/40' : 'bg-black/30 border-white/10'}`;
+            card.innerHTML = unlocked ? `
+                <div class="text-4xl mb-2">${m.icon}</div>
+                <h4 class="font-extrabold text-pink-200 text-sm mb-1">${m.title}</h4>
+                <p class="text-[11px] text-gray-200 italic leading-snug">${m.msg}</p>
+                <span class="inline-block mt-2 text-[9px] font-extrabold uppercase tracking-wider text-emerald-300"><i class="fa-solid fa-lock-open"></i> Desbloqueado · Nivel ${idx+1}</span>
+            ` : `
+                <div class="text-4xl mb-2 grayscale opacity-30">❔</div>
+                <h4 class="font-extrabold text-gray-500 text-sm mb-1">Recuerdo ${idx+1}</h4>
+                <p class="text-[11px] text-gray-600 italic">Escondido en el Nivel ${idx+1}. ¡Encuéntrenlo juntos!</p>
+                <span class="inline-block mt-2 text-[9px] font-extrabold uppercase tracking-wider text-gray-600"><i class="fa-solid fa-lock"></i> Bloqueado</span>
+            `;
+            grid.appendChild(card);
+        });
+        const prog = document.getElementById('gallery-progress');
+        if (prog) prog.innerText = `(${gameState.memories.length}/${MEMORIES.length} encontrados)`;
+        document.getElementById('gallery-complete').classList.toggle('hidden', gameState.memories.length < MEMORIES.length);
+    }
+
+    /* ============================================================= */
+    /*  TÁCTIL EXTRA (botones de habilidad)                           */
+    /* ============================================================= */
+    function bindTouchFlag(btnId, obj, prop){
+        const btn = document.getElementById(btnId); if (!btn) return;
+        const on  = (e)=>{ e.preventDefault(); initAudio(); obj[prop]=true; };
+        const off = (e)=>{ e.preventDefault(); obj[prop]=false; };
+        btn.addEventListener('touchstart', on); btn.addEventListener('touchend', off);
+        btn.addEventListener('mousedown', on);  btn.addEventListener('mouseup', off);
+        btn.addEventListener('mouseleave', off);
+    }
+
+    /* ============================================================= */
+    /*  MULTIJUGADOR ONLINE (PeerJS / WebRTC)                         */
+    /* ============================================================= */
+    function openOnlineModal(){ document.getElementById('online-modal').classList.remove('hidden'); }
+    function closeOnlineModal(){ document.getElementById('online-modal').classList.add('hidden'); }
+    function copyText(id){
+        const el = document.getElementById(id); if (!el) return;
+        el.select(); el.setSelectionRange(0, 99999);
+        try { navigator.clipboard.writeText(el.value); } catch(e){ document.execCommand('copy'); }
+        showInGameBanner('📋 ¡Copiado!');
+    }
+    function onlineStatus(txt, spinner){
+        document.getElementById('online-choose').classList.add('hidden');
+        document.getElementById('online-status').classList.remove('hidden');
+        document.getElementById('online-status-text').innerText = txt;
+        document.getElementById('online-spinner').classList.toggle('hidden', !spinner);
+    }
+    function setOnlineBadge(role){
+        const b = document.getElementById('hud-online-badge');
+        const r = document.getElementById('hud-online-role');
+        if (r) r.innerText = role;
+        if (b) b.classList.remove('hidden');
+    }
+    function hostRoom(){
+        if (typeof Peer === 'undefined'){ onlineStatus('No se pudo cargar PeerJS (¿sin Internet?).', false); return; }
+        leaveOnline(true);
+        const id = 'amor-' + Math.floor(1000 + Math.random()*9000);
+        net.peer = new Peer(id);
+        onlineStatus('Creando sala…', true);
+        net.peer.on('open', (pid) => {
+            const link = location.origin + location.pathname + '?room=' + pid;
+            document.getElementById('online-room-box').classList.remove('hidden');
+            document.getElementById('online-room-code').value = pid;
+            document.getElementById('online-room-link').value = link;
+            onlineStatus('Sala lista. Esperando a tu pareja…', true);
+            document.getElementById('online-status-text').innerHTML =
+                '<i class="fa-solid fa-crown text-yellow-400"></i> Eres el <b>Anfitrión (P1)</b>. Comparte el código:';
+            document.getElementById('online-room-box').classList.remove('hidden');
+        });
+        net.peer.on('connection', (conn) => {
+            net.conn = conn;
+            wireConn(conn, true);
+        });
+        net.peer.on('error', (err) => { onlineStatus('Error: ' + (err && err.type ? err.type : err), false); });
+    }
+    function joinRoom(){
+        if (typeof Peer === 'undefined'){ onlineStatus('No se pudo cargar PeerJS (¿sin Internet?).', false); return; }
+        const code = (document.getElementById('online-join-code').value || '').trim();
+        if (!code){ showInGameBanner('Escribe el código de sala.'); return; }
+        leaveOnline(true);
+        net.peer = new Peer();
+        onlineStatus('Conectando a ' + code + '…', true);
+        net.peer.on('open', () => {
+            const conn = net.peer.connect(code, { reliable:false });
+            net.conn = conn;
+            wireConn(conn, false);
+        });
+        net.peer.on('error', (err) => { onlineStatus('Error: ' + (err && err.type ? err.type : err), false); });
+    }
+    function wireConn(conn, isHost){
+        conn.on('open', () => {
+            net.connected = true;
+            net.mode = isHost ? 'host' : 'client';
+            net.remoteInput = { left:false,right:false,jump:false,ab1:false,ab2:false };
+            setOnlineBadge(isHost ? 'Anfitrión · P1' : 'Invitado · P2');
+            if (isHost){
+                onlineStatus('✅ ¡Conectado! Elige un nivel para empezar.', false);
+                document.getElementById('online-room-box').classList.add('hidden');
+                // Si ya estamos jugando, sincroniza el nivel actual
+                const inGame = !document.getElementById('view-game').classList.contains('hidden');
+                if (inGame) netSend({ t:'lvl', idx: gameState.currentLevelIdx });
+                setTimeout(closeOnlineModal, 1200);
+                showInGameBanner('🎮 ¡Pareja conectada! Tú eres P1 (Rosa).');
+            } else {
+                onlineStatus('✅ ¡Conectado! Esperando que el anfitrión inicie…', true);
+                showInGameBanner('🎮 ¡Conectado! Controlas a P2 (Azul).');
+                setTimeout(closeOnlineModal, 1400);
+            }
+        });
+        conn.on('data', (msg) => onNetData(msg, isHost));
+        conn.on('close', () => { showInGameBanner('🔌 Conexión cerrada.'); leaveOnline(); });
+        conn.on('error', () => { showInGameBanner('⚠️ Error de conexión.'); });
+    }
+    function onNetData(msg, isHost){
+        if (!msg) return;
+        if (isHost){
+            // El host solo recibe el input del cliente (P2)
+            if (msg.t === 'in') net.remoteInput = msg.d;
+            return;
+        }
+        // ---- Cliente ----
+        switch (msg.t){
+            case 'lvl':
+                gameState.currentLevelIdx = msg.idx;
+                loadLevel(msg.idx);
+                if (document.getElementById('view-game').classList.contains('hidden')) switchView('game');
+                break;
+            case 'st':
+                net.lastSnap = msg;
+                applySnapshot(msg);
+                break;
+            case 'ban':
+                { const b = document.getElementById('game-banner'); b.innerText = msg.m; b.classList.remove('hidden'); setTimeout(()=>b.classList.add('hidden'), 2800); }
+                break;
+            case 'done':
+                gameState.score = msg.score != null ? msg.score : gameState.score;
+                updateScoreHud();
+                break;
+            case 'view':
+                if (msg.v === 'victory') showVictoryCertificate();
+                break;
+        }
+    }
+    function netSend(obj){
+        if (net.conn && net.connected){ try { net.conn.send(obj); } catch(e){} }
+    }
+    function netHostBroadcast(){
+        net._bc++;
+        if (net._bc % 2 !== 0) return;   // ~30 fps
+        if (!net.connected) return;
+        netSend(serializeState());
+    }
+    function round(v){ return Math.round(v); }
+    function serializeState(){
+        const B = activeBoss;
+        return {
+            t:'st',
+            p1:[round(p1.x),round(p1.y),p1.isAlive?1:0,p1.facing],
+            p2:[round(p2.x),round(p2.y),p2.isAlive?1:0,p2.facing],
+            bx: activeBoxes.map(b=>[round(b.x),round(b.y)]),
+            sl: activeSlimes.map(s=>[round(s.x),s.alive?1:0]),
+            sw: activeSaws.map(s=>[round(s.x),round((s.angle||0)*50)]),
+            gh: activeGhosts.map(g=>[round(g.x),round(g.y),g.alive?1:0]),
+            swt: activeSwitches.map(s=>s.pressed?1:0),
+            gt: activeGates.map(g=>g.isOpen?1:0),
+            str: activeStars.map(s=>s.collected?1:0),
+            dr: activeDoors.map(d=>d.isOpen?1:0),
+            ls: activeLasers.map(l=>round(l.currentEndY||l.endY)),
+            mem: activeMemories.map(m=>m.collected?1:0),
+            tp: activeTempPlatforms.map(tp=>[round(tp.x),round(tp.y),tp.width]),
+            mv: activeMovers.map(m=>[round(m.x),round(m.y)]),
+            fl: activeFallers.map(f=>f.state),
+            sh: shieldState.active,
+            lasso: lassoVisual ? [round(lassoVisual.x1),round(lassoVisual.y1),round(lassoVisual.x2),round(lassoVisual.y2),lassoVisual.life] : null,
+            lv: gameState.lives, sc: gameState.score, stc: collectedStarsCount, tst: totalStars,
+            ab:[ abilities.p1_doubleJump.cd/abilities.p1_doubleJump.cdMax,
+                 abilities.p1_lasso.cd/abilities.p1_lasso.cdMax,
+                 abilities.p2_shield.cd/abilities.p2_shield.cdMax,
+                 abilities.p2_platform.cd/abilities.p2_platform.cdMax ],
+            boss: B ? { hp:B.hp, mh:B.maxHp, x:round(B.x), y:round(B.y), d:B.distracted?1:0, ch:round(B.charge), cm:B.chargeMax, f:B.hitFlash, al:B.alive?1:0, pr:B.projectiles.map(p=>[round(p.x),round(p.y)]) } : null
+        };
+    }
+    function applySnapshot(s){
+        if (!p1 || !p2) return;
+        if (s.p1){ p1.x=s.p1[0]; p1.y=s.p1[1]; p1.isAlive=!!s.p1[2]; p1.facing=s.p1[3]; }
+        if (s.p2){ p2.x=s.p2[0]; p2.y=s.p2[1]; p2.isAlive=!!s.p2[2]; p2.facing=s.p2[3]; }
+        if (s.bx) s.bx.forEach((b,i)=>{ if(activeBoxes[i]){ activeBoxes[i].x=b[0]; activeBoxes[i].y=b[1]; } });
+        if (s.sl) s.sl.forEach((v,i)=>{ if(activeSlimes[i]){ activeSlimes[i].x=v[0]; activeSlimes[i].alive=!!v[1]; } });
+        if (s.sw) s.sw.forEach((v,i)=>{ if(activeSaws[i]){ activeSaws[i].x=v[0]; activeSaws[i].angle=v[1]/50; } });
+        if (s.gh) s.gh.forEach((v,i)=>{ if(activeGhosts[i]){ activeGhosts[i].x=v[0]; activeGhosts[i].y=v[1]; activeGhosts[i].alive=!!v[2]; } });
+        if (s.swt) s.swt.forEach((v,i)=>{ if(activeSwitches[i]) activeSwitches[i].pressed=!!v; });
+        if (s.gt) s.gt.forEach((v,i)=>{ if(activeGates[i]) activeGates[i].isOpen=!!v; });
+        if (s.str) s.str.forEach((v,i)=>{ if(activeStars[i]) activeStars[i].collected=!!v; });
+        if (s.dr) s.dr.forEach((v,i)=>{ if(activeDoors[i]) activeDoors[i].isOpen=!!v; });
+        if (s.ls) s.ls.forEach((v,i)=>{ if(activeLasers[i]) activeLasers[i].currentEndY=v; });
+        if (s.mem) s.mem.forEach((v,i)=>{ if(activeMemories[i]) activeMemories[i].collected=!!v; });
+        activeTempPlatforms = (s.tp||[]).map(tp=>({ x:tp[0], y:tp[1], width:tp[2], height:12, life:120 }));
+        if (s.mv) s.mv.forEach((m,i)=>{ if(activeMovers[i]){ activeMovers[i].x=m[0]; activeMovers[i].y=m[1]; } });
+        if (s.fl) s.fl.forEach((st,i)=>{ if(activeFallers[i]){ activeFallers[i].state=st; } });
+        shieldState.active = s.sh || 0;
+        lassoVisual = s.lasso ? { x1:s.lasso[0], y1:s.lasso[1], x2:s.lasso[2], y2:s.lasso[3], life:s.lasso[4] } : null;
+        gameState.lives = s.lv; gameState.score = s.sc; collectedStarsCount = s.stc; totalStars = s.tst;
+        if (s.boss && activeBoss){
+            activeBoss.hp=s.boss.hp; activeBoss.maxHp=s.boss.mh; activeBoss.x=s.boss.x; activeBoss.y=s.boss.y;
+            activeBoss.distracted=!!s.boss.d; activeBoss.charge=s.boss.ch; activeBoss.chargeMax=s.boss.cm;
+            activeBoss.hitFlash=s.boss.f; activeBoss.alive=!!s.boss.al;
+            activeBoss.projectiles = s.boss.pr.map(p=>({x:p[0],y:p[1],r:10}));
+        }
+        // HUD
+        document.getElementById('hud-lives-count').innerText = gameState.lives;
+        document.getElementById('game-stars-count').innerText = `${collectedStarsCount}/${totalStars}`;
+        document.getElementById('game-mem-count').innerText = `${activeMemories.filter(m=>m.collected).length}/${activeMemories.length}`;
+        updateScoreHud();
+        if (s.ab){
+            setBar('ab-p1dj', 1-s.ab[0], s.ab[0]<=0.001);
+            setBar('ab-p1lasso', 1-s.ab[1], s.ab[1]<=0.001);
+            setBar('ab-p2shield', shieldState.active>0?1:1-s.ab[2], s.ab[2]<=0.001||shieldState.active>0);
+            setBar('ab-p2plat', 1-s.ab[3], s.ab[3]<=0.001);
+        }
+    }
+    function netClientTick(){
+        // Enviar input local (controla a P2)
+        const inp = schemeInput('client');
+        netSend({ t:'in', d:{ left:inp.left, right:inp.right, jump:inp.jump, ab1:inp.ab1, ab2:inp.ab2 } });
+        // Dibujar último estado recibido
+        if (p1 && p2 && ctx){
+            updateParticles();
+            renderGame();
+        }
+        const gpBadge = document.getElementById('hud-gamepad-badge');
+        if (gpBadge) gpBadge.classList.toggle('hidden', !anyGamepad());
+    }
+    function leaveOnline(silent){
+        try { if (net.conn) net.conn.close(); } catch(e){}
+        try { if (net.peer) net.peer.destroy(); } catch(e){}
+        net.conn = null; net.peer = null; net.connected = false; net.mode = 'local'; net.remoteInput = null;
+        const b = document.getElementById('hud-online-badge'); if (b) b.classList.add('hidden');
+        if (!silent){
+            document.getElementById('online-choose').classList.remove('hidden');
+            document.getElementById('online-status').classList.add('hidden');
+            document.getElementById('online-room-box').classList.add('hidden');
+        }
+    }
+
+    // El cliente no decide niveles (los sigue del anfitrión)
+    const _origStartGame = startGame;
+    startGame = function(n){
+        if (net.mode === 'client'){ showInGameBanner('El anfitrión elige los niveles.'); return; }
+        _origStartGame(n);
+    };
+
+    /* ============================================================= */
+    /*  INICIALIZACIÓN                                                */
+    /* ============================================================= */
+    window.addEventListener('load', () => {
+        // Botones táctiles de habilidad
+        bindTouchFlag('btn-p1-lasso', touchP1, 'ability1');
+        bindTouchFlag('btn-p2-shield', touchP2, 'ability1');
+        bindTouchFlag('btn-p2-plat', touchP2, 'ability2');
+
+        refreshMenuStats();
+
+        // Estado de mandos en el menú
+        window.addEventListener('gamepadconnected', () => { refreshMenuStats(); showInGameBanner('🎮 ¡Mando conectado!'); });
+        window.addEventListener('gamepaddisconnected', refreshMenuStats);
+
+        // Auto-unirse si viene ?room= en la URL
+        const params = new URLSearchParams(location.search);
+        const room = params.get('room');
+        if (room){
+            openOnlineModal();
+            const input = document.getElementById('online-join-code');
+            if (input) input.value = room;
+            setTimeout(() => joinRoom(), 600);
+        }
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Parkour Versus</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{color-scheme:dark;}
+  *{box-sizing:border-box;}
+  body{font-family:'Nunito',sans-serif;background:linear-gradient(135deg,#1e1b2e 0%,#2a1b3d 50%,#1a0f2e 100%);color:#f3f4f6;margin:0;min-height:100vh;user-select:none;-webkit-user-select:none;touch-action:manipulation;overflow-x:hidden;}
+  h1,h2,h3,.font-display{font-family:'Fredoka',sans-serif;}
+  .glass{background:rgba(30,27,46,.85);backdrop-filter:blur(12px);border:2px solid rgba(255,255,255,.12);}
+  .btn{transition:all .15s ease;}
+  .btn:active{transform:scale(.95);}
+  #stage{width:100%;max-width:1100px;margin:0 auto;}
+  canvas#game{width:100%;height:auto;display:block;border-radius:16px;background:#111;touch-action:none;}
+  .hand-card{transition:all .15s ease;border:2px solid rgba(255,255,255,.15);}
+  .hand-card.sel{border-color:#fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.35);transform:translateY(-4px);}
+  .hand-card:hover{transform:translateY(-3px);}
+  .touchbtn{width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;}
+  .touchbtn:active{background:rgba(255,255,255,.3);transform:scale(.92);}
+  .bar-track{background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;height:22px;position:relative;}
+  .seg{height:100%;float:left;}
+  [hidden]{display:none!important;}
+</style>
+</head>
+<body class="min-h-screen flex flex-col items-center px-3 py-4">
+
+<!-- Top bar -->
+<div class="w-full max-w-[1100px] flex items-center justify-between mb-3">
+  <a href="index.html" class="btn glass rounded-xl px-3 py-2 text-sm font-bold text-gray-200"><i class="fa-solid fa-arrow-left mr-1"></i>Menú</a>
+  <h1 class="text-lg sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-300 to-rose-400">Parkour Versus</h1>
+  <button id="btn-restart" class="btn glass rounded-xl px-3 py-2 text-sm font-bold text-gray-200" hidden><i class="fa-solid fa-rotate-right mr-1"></i>Reiniciar</button>
+</div>
+
+<!-- ============ START / LOBBY ============ -->
+<section id="screen-start" class="glass rounded-3xl p-6 sm:p-8 w-full max-w-lg text-center">
+  <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-3xl text-white mb-4"><i class="fa-solid fa-person-running"></i></div>
+  <h2 class="text-2xl font-extrabold mb-1">Parkour Versus · 1 vs 1</h2>
+  <p class="text-gray-400 text-sm mb-6">Colocad objetos al azar para armar un parkour y competid por ser el jugador definitivo.</p>
+
+  <div class="grid gap-3">
+    <button id="m-online-host" class="btn rounded-2xl p-4 bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-extrabold text-left flex items-center gap-3"><i class="fa-solid fa-crown text-xl"></i><div><div>Crear sala online</div><div class="text-xs font-semibold opacity-80">Tú invitas · juegas desde tu dispositivo</div></div></button>
+    <button id="m-online-join" class="btn rounded-2xl p-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold text-left flex items-center gap-3"><i class="fa-solid fa-right-to-bracket text-xl"></i><div><div>Unirme a una sala</div><div class="text-xs font-semibold opacity-80">Con el código que te pasen</div></div></button>
+    <button id="m-local" class="btn rounded-2xl p-4 bg-white/10 text-white font-extrabold text-left flex items-center gap-3"><i class="fa-solid fa-desktop text-xl"></i><div><div>Mismo PC (2 jugadores / probar)</div><div class="text-xs font-semibold opacity-70">J1: A/D + W · J2: ← → + ↑</div></div></button>
+  </div>
+</section>
+
+<!-- Online connect panel -->
+<section id="screen-net" class="glass rounded-3xl p-6 w-full max-w-lg text-center" hidden>
+  <h2 id="net-title" class="text-xl font-extrabold mb-4">Sala online</h2>
+  <div id="net-host" hidden>
+    <p class="text-gray-400 text-sm mb-2">Comparte este código con tu rival:</p>
+    <div class="flex items-center gap-2 justify-center mb-3">
+      <code id="roomcode" class="text-2xl font-extrabold tracking-widest bg-black/40 px-4 py-2 rounded-xl text-amber-300">----</code>
+      <button id="copycode" class="btn glass rounded-xl px-3 py-2 text-sm"><i class="fa-regular fa-copy"></i></button>
+    </div>
+    <p id="host-status" class="text-sky-300 text-sm animate-pulse">Esperando a que se una tu rival…</p>
+  </div>
+  <div id="net-join" hidden>
+    <p class="text-gray-400 text-sm mb-2">Escribe el código de la sala:</p>
+    <input id="joininput" maxlength="6" placeholder="CÓDIGO" class="w-full text-center text-2xl font-extrabold tracking-widest bg-black/40 px-4 py-3 rounded-xl text-emerald-300 uppercase mb-3 outline-none">
+    <button id="dojoin" class="btn w-full rounded-xl py-3 bg-emerald-500 text-white font-extrabold">Conectar</button>
+    <p id="join-status" class="text-emerald-300 text-sm mt-3"></p>
+  </div>
+  <button id="net-back" class="btn mt-4 text-gray-400 text-sm">← Volver</button>
+</section>
+
+<!-- ============ GAME ============ -->
+<section id="screen-game" class="w-full max-w-[1100px]" hidden>
+  <!-- Scoreboard -->
+  <div class="glass rounded-2xl p-3 mb-3">
+    <div class="flex items-center justify-between text-xs font-bold mb-1"><span id="sb-p1" class="text-rose-300">J1</span><span class="text-gray-400">Primero en llenar la barra gana · Meta <span id="sb-win">10</span></span><span id="sb-p2" class="text-sky-300">J2</span></div>
+    <div class="bar-track mb-1"><div id="bar1" class="h-full bg-gradient-to-r from-rose-500 to-pink-400" style="width:0%"></div></div>
+    <div class="bar-track"><div id="bar2" class="h-full bg-gradient-to-r from-sky-500 to-cyan-400" style="width:0%"></div></div>
+  </div>
+
+  <!-- Phase banner -->
+  <div class="flex items-center justify-between mb-2">
+    <div id="phase-banner" class="glass rounded-xl px-3 py-2 text-sm font-extrabold">Preparando…</div>
+    <div id="map-name" class="glass rounded-xl px-3 py-2 text-sm font-bold text-amber-200"></div>
+  </div>
+
+  <div id="stage"><canvas id="game" width="1280" height="640"></canvas></div>
+
+  <!-- Placement hand -->
+  <div id="hand-area" class="mt-3" hidden>
+    <p id="place-who" class="text-center text-sm font-bold mb-2">Elige un objeto y tócalo en el mapa para colocarlo</p>
+    <div id="hand" class="flex gap-2 justify-center flex-wrap"></div>
+  </div>
+
+  <!-- Touch controls (run phase) -->
+  <div id="touch-run" class="mt-3 flex items-center justify-between" hidden>
+    <div class="flex gap-3">
+      <div class="touchbtn" data-k="left"><i class="fa-solid fa-chevron-left"></i></div>
+      <div class="touchbtn" data-k="right"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+    <div class="touchbtn" data-k="jump" style="width:76px;height:76px;font-size:28px;background:rgba(251,191,36,.3);border-color:rgba(251,191,36,.6)"><i class="fa-solid fa-angles-up"></i></div>
+  </div>
+</section>
+
+<!-- Round / win overlay -->
+<div id="overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50" hidden>
+  <div class="glass rounded-3xl p-6 w-full max-w-md text-center">
+    <div id="ov-icon" class="text-5xl mb-2">🏁</div>
+    <h2 id="ov-title" class="text-2xl font-extrabold mb-2">Resultado</h2>
+    <div id="ov-body" class="text-sm text-gray-300 mb-5"></div>
+    <button id="ov-btn" class="btn w-full rounded-xl py-3 bg-gradient-to-r from-amber-400 to-rose-500 text-white font-extrabold">Siguiente ronda</button>
+    <p id="ov-wait" class="text-gray-400 text-sm mt-3" hidden>Esperando al otro jugador…</p>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   PARKOUR VERSUS  —  motor + modos (local / online PeerJS)
+   ========================================================================= */
+const WORLD_W=1280, WORLD_H=640, WIN_SCORE=10, ROUND_TIME=22;
+const GRAV=0.72, MOVE=0.9, MAXVX=5.2, FRICT=0.80, JUMP=14.2;
+const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+
+/* ---------- Estado global ---------- */
+let mode=null;            // 'local' | 'online'
+let myIndex=0;            // en online: 0 = host/J1, 1 = guest/J2 ; en local controlas ambos
+let isHost=true;
+let totals=[0,0], lossStreak=[0,0];
+let roundIdx=0, curMap=null, hand=[], placed=[], players=[], phase='idle';
+let placeTurn=0;          // en local: quién coloca ahora (0/1)
+let placedThisRound=[false,false];
+let outcomes=[null,null];
+let roundTimer=0, runStart=0;
+let selCard=-1;           // índice de carta seleccionada
+let ghost={x:0,y:0,face:1,on:false}; // rival en online (fase carrera)
+
+/* ---------- Mapas ---------- */
+// Cada mapa: fondo(theme), geometría estática (solids/hazards), spawn, goal.
+// Hay un hueco central grande que hay que cruzar con objetos colocados.
+function baseGeom(extra){
+  const g=[
+    {type:'solid',x:40,y:520,w:230,h:120},          // plataforma de salida (izq)
+    {type:'solid',x:WORLD_W-250,y:460,w:210,h:180},  // plataforma de meta (der)
+  ];
+  return g.concat(extra||[]);
+}
+const MAPS=[
+  { name:'Cielo ☁️', theme:'sky',
+    solids: baseGeom([ {type:'solid',x:560,y:400,w:120,h:18}, {type:'saw',cx:430,cy:360,r:24} ]),
+    spawn:{x:120,y:470}, goal:{x:WORLD_W-150,y:360,w:70,h:100} },
+  { name:'Caja de cartón 📦', theme:'box',
+    solids: baseGeom([ {type:'solid',x:520,y:430,w:150,h:18}, {type:'spikes',x:700,y:502,w:90,h:0} ]),
+    spawn:{x:120,y:470}, goal:{x:WORLD_W-150,y:360,w:70,h:100} },
+  { name:'Cascada 🏞️', theme:'water',
+    solids: baseGeom([ {type:'solid',x:600,y:380,w:120,h:18}, {type:'water',x:270,y:600,w:760,h:40} ]),
+    spawn:{x:120,y:470}, goal:{x:WORLD_W-150,y:360,w:70,h:100} },
+  { name:'Cueva de lava 🌋', theme:'lava',
+    solids: baseGeom([ {type:'solid',x:540,y:420,w:120,h:18}, {type:'lava',x:270,y:604,w:760,h:36}, {type:'saw',cx:760,cy:330,r:26} ]),
+    spawn:{x:120,y:470}, goal:{x:WORLD_W-150,y:360,w:70,h:100} },
+];
+
+/* ---------- Catálogo de objetos colocables ---------- */
+const OBJ={
+  plat:   {name:'Plataforma', icon:'fa-grip-lines', danger:false, w:130,h:18},
+  box:    {name:'Caja',       icon:'fa-cube',       danger:false, w:52,h:52},
+  spring: {name:'Muelle',     icon:'fa-arrow-up-from-bracket', danger:false, w:64,h:22, spring:true},
+  saw:    {name:'Sierra',     icon:'fa-gear',       danger:true,  r:26},
+  spikes: {name:'Pinchos',    icon:'fa-mound',      danger:true,  w:64,h:26},
+};
+const OBJ_KEYS=Object.keys(OBJ);
+function randHand(){ const h=[]; for(let i=0;i<3;i++) h.push(OBJ_KEYS[Math.floor(Math.random()*OBJ_KEYS.length)]); return h; }
+
+/* ---------- Jugador ---------- */
+function makePlayer(i){
+  return {i, x:0,y:0,vx:0,vy:0,w:34,h:40,onGround:false,face:1,
+          reached:false,dead:false,deadBy:null,finishT:0,animT:0,active:true};
+}
+function resetPlayers(){
+  players=[makePlayer(0),makePlayer(1)];
+  for(const p of players){ p.x=curMap.spawn.x + p.i*46; p.y=curMap.spawn.y; p.vx=p.vy=0;
+    p.reached=p.dead=false; p.deadBy=null; p.finishT=0; }
+}
+
+/* =========================  FÍSICA  ========================= */
+function rectsSolid(){
+  // solids estáticos del mapa + objetos colocados sólidos
+  const s=[];
+  for(const o of curMap.solids){ if(o.type==='solid') s.push({x:o.x,y:o.y,w:o.w,h:o.h,spring:false}); }
+  for(const o of placed){ const d=OBJ[o.k];
+    if(!d.danger){ if(d.r){s.push({x:o.x-d.r,y:o.y-d.r,w:d.r*2,h:d.r*2,spring:false});}
+      else s.push({x:o.x,y:o.y,w:d.w,h:d.h,spring:!!d.spring}); } }
+  return s;
+}
+function hazards(){
+  const hz=[];
+  for(const o of curMap.solids){
+    if(o.type==='saw') hz.push({kind:'saw',x:o.cx-o.r,y:o.cy-o.r,w:o.r*2,h:o.r*2,owner:null});
+    if(o.type==='spikes') hz.push({kind:'spikes',x:o.x,y:o.y-24,w:o.w,h:28,owner:null});
+    if(o.type==='lava') hz.push({kind:'lava',x:o.x,y:o.y,w:o.w,h:o.h,owner:null});
+    if(o.type==='water') hz.push({kind:'water',x:o.x,y:o.y,w:o.w,h:o.h,owner:null});
+  }
+  for(const o of placed){ const d=OBJ[o.k]; if(!d.danger) continue;
+    if(d.r) hz.push({kind:'saw',x:o.x-d.r,y:o.y-d.r,w:d.r*2,h:d.r*2,owner:o.owner});
+    else hz.push({kind:'spikes',x:o.x,y:o.y-d.h,w:d.w,h:d.h+6,owner:o.owner});
+  }
+  return hz;
+}
+function overlap(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
+
+function stepPlayer(p, input){
+  if(!p.active||p.reached||p.dead) return;
+  p.animT++;
+  if(input.left){ p.vx-=MOVE; p.face=-1; }
+  if(input.right){ p.vx+=MOVE; p.face=1; }
+  if(!input.left&&!input.right) p.vx*=FRICT;
+  p.vx=Math.max(-MAXVX,Math.min(MAXVX,p.vx));
+  if(input.jump && p.onGround){ p.vy=-JUMP; p.onGround=false; }
+  p.vy+=GRAV; if(p.vy>18)p.vy=18;
+
+  const solids=rectsSolid();
+  // eje X
+  p.x+=p.vx;
+  for(const s of solids){ const box={x:p.x,y:p.y,w:p.w,h:p.h};
+    if(overlap(box,s)){ if(p.vx>0)p.x=s.x-p.w; else if(p.vx<0)p.x=s.x+s.w; p.vx=0; } }
+  // eje Y
+  p.onGround=false; p.y+=p.vy;
+  for(const s of solids){ const box={x:p.x,y:p.y,w:p.w,h:p.h};
+    if(overlap(box,s)){
+      if(p.vy>0){ p.y=s.y-p.h; p.onGround=true; if(s.spring){ p.vy=-JUMP*1.55; p.onGround=false; } else p.vy=0; }
+      else if(p.vy<0){ p.y=s.y+s.h; p.vy=0; }
+    } }
+  // límites laterales
+  if(p.x<0)p.x=0; if(p.x+p.w>WORLD_W)p.x=WORLD_W-p.w;
+  // caída al vacío
+  if(p.y>WORLD_H+60){ p.dead=true; p.deadBy=null; return; }
+  // peligros
+  const pb={x:p.x,y:p.y,w:p.w,h:p.h};
+  for(const h of hazards()){ if(overlap(pb,h)){ p.dead=true; p.deadBy=h.owner; return; } }
+  // meta
+  const g=curMap.goal;
+  if(overlap(pb,{x:g.x,y:g.y,w:g.w,h:g.h})){ p.reached=true; p.finishT=(performance.now()-runStart)/1000; }
+}
+
+/* =========================  DIBUJO  ========================= */
+function drawBG(theme){
+  let g;
+  if(theme==='sky'){ g=ctx.createLinearGradient(0,0,0,WORLD_H); g.addColorStop(0,'#e9a06b'); g.addColorStop(.5,'#f0c89a'); g.addColorStop(1,'#f6ddbf'); ctx.fillStyle=g; ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    ctx.fillStyle='rgba(255,255,255,.55)'; cloud(300,160,70); cloud(820,120,90); cloud(1050,250,60); }
+  else if(theme==='box'){ g=ctx.createLinearGradient(0,0,0,WORLD_H); g.addColorStop(0,'#e8d7bd'); g.addColorStop(1,'#d8c3a0'); ctx.fillStyle=g; ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    ctx.strokeStyle='rgba(150,110,70,.25)'; ctx.lineWidth=3; for(let x=0;x<WORLD_W;x+=90){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_H);ctx.stroke();} }
+  else if(theme==='water'){ g=ctx.createLinearGradient(0,0,0,WORLD_H); g.addColorStop(0,'#8fd0e8'); g.addColorStop(.6,'#b9e4d0'); g.addColorStop(1,'#6fae8e'); ctx.fillStyle=g; ctx.fillRect(0,0,WORLD_W,WORLD_H); }
+  else { g=ctx.createLinearGradient(0,0,0,WORLD_H); g.addColorStop(0,'#5a3321'); g.addColorStop(1,'#2a1410'); ctx.fillStyle=g; ctx.fillRect(0,0,WORLD_W,WORLD_H); }
+}
+function cloud(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.arc(x+r,y+10,r*.8,0,7); ctx.arc(x-r,y+12,r*.7,0,7); ctx.fill(); }
+
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function drawStatic(){
+  for(const o of curMap.solids){
+    if(o.type==='solid'){ ctx.fillStyle = curMap.theme==='lava'?'#7a4a2c': curMap.theme==='water'?'#5f8f6a':'#b98a5a'; roundRect(o.x,o.y,o.w,o.h,6); ctx.fill(); ctx.fillStyle='rgba(255,255,255,.15)'; ctx.fillRect(o.x,o.y,o.w,4); }
+    if(o.type==='saw') drawSaw(o.cx,o.cy,o.r);
+    if(o.type==='spikes') drawSpikes(o.x,o.y-24,o.w);
+    if(o.type==='lava'){ const g=ctx.createLinearGradient(0,o.y,0,o.y+o.h); g.addColorStop(0,'#ffcf3f'); g.addColorStop(.4,'#ff7a1a'); g.addColorStop(1,'#d01818'); ctx.fillStyle=g; ctx.fillRect(o.x,o.y,o.w,o.h); }
+    if(o.type==='water'){ ctx.fillStyle='rgba(70,160,220,.6)'; ctx.fillRect(o.x,o.y,o.w,o.h); }
+  }
+  // meta (bandera)
+  const g=curMap.goal; ctx.fillStyle='#fde047'; ctx.fillRect(g.x+g.w/2-3,g.y-40,6,g.h+40);
+  ctx.fillStyle='#22c55e'; ctx.beginPath(); ctx.moveTo(g.x+g.w/2+3,g.y-40); ctx.lineTo(g.x+g.w/2+40,g.y-28); ctx.lineTo(g.x+g.w/2+3,g.y-16); ctx.fill();
+  ctx.fillStyle='rgba(34,197,94,.18)'; roundRect(g.x,g.y,g.w,g.h,8); ctx.fill();
+  ctx.fillStyle='#86efac'; ctx.font='bold 13px Nunito'; ctx.textAlign='center'; ctx.fillText('META',g.x+g.w/2,g.y+g.h/2);
+}
+function drawSaw(cx,cy,r){ ctx.save(); ctx.translate(cx,cy); ctx.rotate((performance.now()/120)% (Math.PI*2)); ctx.fillStyle='#9ca3af'; for(let i=0;i<10;i++){ctx.rotate(Math.PI*2/10); ctx.beginPath(); ctx.moveTo(r-2,-6); ctx.lineTo(r+8,0); ctx.lineTo(r-2,6); ctx.fill();} ctx.beginPath(); ctx.arc(0,0,r-2,0,7); ctx.fill(); ctx.fillStyle='#4b5563'; ctx.beginPath(); ctx.arc(0,0,6,0,7); ctx.fill(); ctx.restore(); }
+function drawSpikes(x,y,w){ ctx.fillStyle='#64748b'; const n=Math.max(3,Math.floor(w/16)); const sw=w/n; for(let i=0;i<n;i++){ ctx.beginPath(); ctx.moveTo(x+i*sw,y+24); ctx.lineTo(x+i*sw+sw/2,y); ctx.lineTo(x+i*sw+sw,y+24); ctx.fill(); } }
+
+function drawObj(o,phantom){
+  const d=OBJ[o.k]; ctx.globalAlpha=phantom?0.5:1;
+  const col = o.owner===0?'#f43f5e': o.owner===1?'#0284c7':'#cbd5e1';
+  if(o.k==='saw'){ drawSaw(o.x,o.y,d.r); }
+  else if(o.k==='spikes'){ drawSpikes(o.x,o.y-d.h,d.w); }
+  else if(o.k==='spring'){ ctx.fillStyle='#374151'; roundRect(o.x,o.y+8,d.w,d.h-8,4); ctx.fill(); ctx.fillStyle='#22c55e'; roundRect(o.x,o.y,d.w,10,4); ctx.fill(); }
+  else if(o.k==='box'){ ctx.fillStyle='#c98a4b'; roundRect(o.x,o.y,d.w,d.h,6); ctx.fill(); ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=3; ctx.strokeRect(o.x+6,o.y+6,d.w-12,d.h-12); }
+  else { ctx.fillStyle='#d6a06a'; roundRect(o.x,o.y,d.w,d.h,5); ctx.fill(); }
+  // marca de dueño
+  if(o.owner!=null && !phantom){ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(o.x+(d.w||d.r*0||0)+( d.r?0:0),o.y-4,0,0,7); ctx.fill(); }
+  ctx.globalAlpha=1;
+}
+
+function drawPlayer(p,isGhost){
+  const col = p.i===0 ? (isGhost?'rgba(244,63,94,.45)':'#f43f5e') : (isGhost?'rgba(2,132,199,.45)':'#0284c7');
+  const bob = p.reached?0:Math.sin(p.animT/5)*(Math.abs(p.vx)>0.5?2:0.6);
+  ctx.save(); ctx.translate(p.x+p.w/2, p.y+p.h/2+bob);
+  // cuerpo (animalito simple)
+  ctx.fillStyle=col; roundRect(-p.w/2,-p.h/2,p.w,p.h,10); ctx.fill();
+  // orejas
+  ctx.beginPath(); ctx.arc(-9,-p.h/2+2,6,0,7); ctx.arc(9,-p.h/2+2,6,0,7); ctx.fill();
+  // panza
+  ctx.fillStyle='rgba(255,255,255,.75)'; roundRect(-8,-2,16,16,6); ctx.fill();
+  // ojos
+  ctx.fillStyle='#1f2937'; ctx.beginPath(); ctx.arc(p.face*4-4,-8,2.6,0,7); ctx.arc(p.face*4+6,-8,2.6,0,7); ctx.fill();
+  if(p.dead){ ctx.strokeStyle='#1f2937'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-8,-11);ctx.lineTo(-2,-5);ctx.moveTo(-2,-11);ctx.lineTo(-8,-5); ctx.moveTo(2,-11);ctx.lineTo(8,-5);ctx.moveTo(8,-11);ctx.lineTo(2,-5); ctx.stroke(); }
+  ctx.restore();
+  // etiqueta
+  ctx.fillStyle=col; ctx.font='bold 12px Nunito'; ctx.textAlign='center';
+  ctx.fillText(p.i===0?'J1':'J2', p.x+p.w/2, p.y-8);
+}
+
+/* loop de render principal */
+function render(){
+  if(!curMap){ requestAnimationFrame(render); return; }
+  drawBG(curMap.theme);
+  drawStatic();
+  for(const o of placed) drawObj(o,false);
+  // fantasma de colocación
+  if(phase==='place' && selCard>=0 && pointer.inside){ drawObj({k:hand[selCard],x:pointer.x-ghostOff().x,y:pointer.y-ghostOff().y,owner:currentPlacer()},true); }
+  // jugadores
+  if(phase==='run'||phase==='resolve'){
+    for(const p of players){ if(mode==='online' && p.i!==myIndex && ghost.on) continue; drawPlayer(p,false); }
+    if(mode==='online' && ghost.on){ const gp={i:1-myIndex,x:ghost.x,y:ghost.y,w:34,h:40,face:ghost.face,animT:performance.now()/16,vx:1,reached:false,dead:false}; drawPlayer(gp,true); }
+  }
+  // temporizador de ronda
+  if(phase==='run'){ const left=Math.max(0,ROUND_TIME-(performance.now()-runStart)/1000); ctx.fillStyle='rgba(0,0,0,.4)'; roundRect(WORLD_W/2-46,12,92,30,8); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='bold 18px Nunito'; ctx.textAlign='center'; ctx.fillText(left.toFixed(1)+'s',WORLD_W/2,33); }
+  requestAnimationFrame(render);
+}
+
+/* =========================  INPUT  ========================= */
+const keys={};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+const touch={left:false,right:false,jump:false};
+document.querySelectorAll('#touch-run .touchbtn').forEach(b=>{
+  const k=b.dataset.k; const on=e=>{e.preventDefault();touch[k]=true;}; const off=e=>{e.preventDefault();touch[k]=false;};
+  b.addEventListener('touchstart',on); b.addEventListener('touchend',off); b.addEventListener('touchcancel',off);
+  b.addEventListener('mousedown',on); b.addEventListener('mouseup',off); b.addEventListener('mouseleave',off);
+});
+function inputFor(i){
+  if(mode==='online'){ if(i!==myIndex) return {left:false,right:false,jump:false};
+    return { left: keys['arrowleft']||keys['a']||touch.left, right: keys['arrowright']||keys['d']||touch.right, jump: keys['arrowup']||keys['w']||keys[' ']||touch.jump }; }
+  // local: J1 WAD, J2 flechas
+  if(i===0) return {left:keys['a'],right:keys['d'],jump:keys['w']};
+  return {left:keys['arrowleft'],right:keys['arrowright'],jump:keys['arrowup']};
+}
+
+/* ----- puntero para colocación ----- */
+const pointer={x:0,y:0,inside:false};
+function toWorld(ev){ const r=canvas.getBoundingClientRect(); const cx=(ev.touches?ev.touches[0].clientX:ev.clientX); const cy=(ev.touches?ev.touches[0].clientY:ev.clientY); return {x:(cx-r.left)/r.width*WORLD_W, y:(cy-r.top)/r.height*WORLD_H}; }
+function ghostOff(){ const d=OBJ[hand[selCard]]; return {x:(d.w||0)/2, y:(d.h|| (d.r?d.r:0))/2}; }
+function currentPlacer(){ return mode==='local'?placeTurn:myIndex; }
+canvas.addEventListener('mousemove',e=>{ const w=toWorld(e); pointer.x=w.x; pointer.y=w.y; pointer.inside=true; });
+canvas.addEventListener('mouseleave',()=>pointer.inside=false);
+canvas.addEventListener('touchmove',e=>{ const w=toWorld(e); pointer.x=w.x; pointer.y=w.y; pointer.inside=true; },{passive:true});
+canvas.addEventListener('click',e=>{ if(phase!=='place')return; const w=toWorld(e); pointer.x=w.x;pointer.y=w.y; tryPlace(); });
+canvas.addEventListener('touchend',e=>{ if(phase!=='place')return; tryPlace(); });
+
+function tryPlace(){
+  if(selCard<0) { toast('Primero elige un objeto 👇'); return; }
+  const off=ghostOff(); const k=hand[selCard];
+  const o={k, x:pointer.x-off.x, y:pointer.y-off.y, owner:currentPlacer()};
+  // validación: dentro del mundo y no encima de las plataformas base de salida/meta
+  const d=OBJ[k]; const ww=d.w||d.r*2, hh=d.h||d.r*2;
+  if(o.x<10||o.x+ww>WORLD_W-10||o.y<10||o.y+hh>WORLD_H-10){ toast('Colócalo dentro del mapa'); return; }
+  placed.push(o);
+  placedThisRound[currentPlacer()]=true;
+  selCard=-1; renderHand();
+  if(mode==='online'){ net.send({t:'place',by:myIndex,obj:o}); finishPlacement(); }
+  else { // local: pasa al J2, o a correr
+    if(placeTurn===0 && !placedThisRound[1]){ placeTurn=1; document.getElementById('place-who').innerHTML='<b class="text-sky-300">Jugador 2</b>: elige y coloca tu objeto'; }
+    else finishPlacement();
+  }
+}
+
+/* =========================  FASES  ========================= */
+function setPhase(p){ phase=p; }
+function startRound(){
+  curMap = MAPS[roundIdx % MAPS.length];
+  placed=[]; placedThisRound=[false,false]; outcomes=[null,null]; selCard=-1; ghost.on=false;
+  resetPlayers();
+  document.getElementById('map-name').textContent=curMap.name;
+  updateScoreboard();
+  // en online el host decide la mano y la envía
+  if(mode==='online'){ if(isHost){ hand=randHand(); net.send({t:'round',roundIdx,hand}); } }
+  else hand=randHand();
+  beginPlacement();
+}
+function beginPlacement(){
+  setPhase('place'); placeTurn=0;
+  document.getElementById('hand-area').hidden=false;
+  document.getElementById('touch-run').hidden=true;
+  document.getElementById('overlay').hidden=true;
+  const who = mode==='local' ? '<b class="text-rose-300">Jugador 1</b>: elige y coloca tu objeto'
+            : 'Elige tu objeto y tócalo en el mapa';
+  document.getElementById('place-who').innerHTML=who;
+  banner('🧩 Fase de colocar');
+  renderHand();
+}
+function finishPlacement(){
+  // ¿han colocado los dos?
+  const bothDone = mode==='local' ? (placedThisRound[0]&&placedThisRound[1])
+                                  : (placedThisRound[myIndex] && placedThisRound[1-myIndex]);
+  document.getElementById('hand-area').hidden=true;
+  if(mode==='online' && !bothDone){ banner('⌛ Esperando a que coloque tu rival…'); return; }
+  startRun();
+}
+function startRun(){
+  setPhase('run'); runStart=performance.now();
+  banner('🏃 ¡A correr a la meta!');
+  document.getElementById('touch-run').hidden=false;
+  lastPosSent=0;
+}
+function endRun(){
+  setPhase('resolve');
+  document.getElementById('touch-run').hidden=true;
+  // outcome propio
+  const me = mode==='local'?null:players[myIndex];
+  if(mode==='online'){ sendMyOutcome(); maybeScore(); }
+  else { outcomes[0]=mkOutcome(players[0]); outcomes[1]=mkOutcome(players[1]); scoreRound(); }
+}
+function mkOutcome(p){ return {reached:p.reached,dead:p.dead,deadBy:p.deadBy,time:p.finishT||99}; }
+
+/* lógica de puntuación (verde / naranja / rosa) */
+function scoreRound(){
+  const o0=outcomes[0], o1=outcomes[1];
+  let add=[0,0]; let lines=[];
+  // VERDE: llegas a la meta y el rival NO
+  if(o0.reached && !o1.reached){ add[0]+=2; lossStreak[0]=0; lossStreak[1]++; lines.push('<span class="text-emerald-300 font-bold">J1 llegó a la meta y gana la ronda (+2)</span>'); }
+  else if(o1.reached && !o0.reached){ add[1]+=2; lossStreak[1]=0; lossStreak[0]++; lines.push('<span class="text-emerald-300 font-bold">J2 llegó a la meta y gana la ronda (+2)</span>'); }
+  else { lines.push('<span class="text-rose-300 font-bold">¡Muy fácil! Sin puntos</span> (ambos llegaron o ninguno)');
+         if(o0.reached) lossStreak[0]=0; if(o1.reached) lossStreak[1]=0; }
+  // NARANJA: el rival murió en una trampa TUYA
+  if(o1.dead && o1.deadBy===0){ add[0]+=1; lines.push('<span class="text-orange-300 font-bold">¡J2 cayó en una trampa de J1! (+1 naranja)</span>'); }
+  if(o0.dead && o0.deadBy===1){ add[1]+=1; lines.push('<span class="text-orange-300 font-bold">¡J1 cayó en una trampa de J2! (+1 naranja)</span>'); }
+  // ROSA: racha de 4 derrotas y llegas -> empujón
+  for(const i of [0,1]){ const o=i===0?o0:o1;
+    if(lossStreak[i]>=4 && o.reached){ add[i]+=2; lossStreak[i]=0; lines.push('<span class="text-pink-300 font-bold">J'+(i+1)+' remonta tras 4 derrotas: ¡apoyo +2 rosa!</span>'); }
+  }
+  totals[0]+=add[0]; totals[1]+=add[1];
+  updateScoreboard();
+  showResult(add,lines);
+}
+
+/* en online el host es el árbitro del marcador */
+function maybeScore(){
+  if(!isHost) return; // el guest espera el 't:score' del host
+  if(outcomes[0]&&outcomes[1]){ scoreRound(); net.send({t:'score',totals,lossStreak}); }
+}
+
+function showResult(add,lines){
+  const ov=document.getElementById('overlay'); ov.hidden=false;
+  const win = totals[0]>=WIN_SCORE || totals[1]>=WIN_SCORE;
+  if(win){
+    const w = totals[0]>totals[1]?0:1;
+    document.getElementById('ov-icon').textContent='🏆';
+    document.getElementById('ov-title').innerHTML='¡VICTORIA de J'+(w+1)+'!';
+    document.getElementById('ov-body').innerHTML='Marcador final · J1 '+totals[0]+' — '+totals[1]+' J2<br><span class="text-amber-300 font-bold">El jugador definitivo es J'+(w+1)+' 🎉</span>';
+    const b=document.getElementById('ov-btn'); b.textContent='Jugar otra vez'; b.onclick=()=>location.reload();
+    document.getElementById('ov-wait').hidden=true;
+    return;
+  }
+  document.getElementById('ov-icon').textContent='🏁';
+  document.getElementById('ov-title').textContent='Ronda '+(roundIdx+1);
+  document.getElementById('ov-body').innerHTML = lines.join('<br>') + '<br><br>J1 '+add[0]+'  ·  J2 '+add[1]+' puntos esta ronda';
+  const btn=document.getElementById('ov-btn'); btn.textContent='Siguiente ronda';
+  const wait=document.getElementById('ov-wait');
+  if(mode==='online' && !isHost){ btn.hidden=true; wait.hidden=false; }
+  else { btn.hidden=false; wait.hidden=true; btn.onclick=()=>{ roundIdx++; if(mode==='online') net.send({t:'next',roundIdx}); startRound(); }; }
+}
+
+/* =========================  BUCLE DE JUEGO  ========================= */
+function tick(){
+  if(phase==='run'){
+    if(mode==='online'){ stepPlayer(players[myIndex],inputFor(myIndex)); }
+    else { stepPlayer(players[0],inputFor(0)); stepPlayer(players[1],inputFor(1)); }
+    // ¿fin de ronda?
+    const t=(performance.now()-runStart)/1000;
+    let done;
+    if(mode==='online'){ const me=players[myIndex]; if((me.reached||me.dead)&&!outcomes[myIndex]){ sendMyOutcome(); } done = outcomes[0]&&outcomes[1]; if(t>ROUND_TIME && !outcomes[myIndex]){ me.dead=me.dead||!me.reached; sendMyOutcome(); } }
+    else { const allDone=players.every(p=>p.reached||p.dead); if(t>ROUND_TIME){ players.forEach(p=>{ if(!p.reached)p.dead=true; }); } done=players.every(p=>p.reached||p.dead); }
+    if(done) endRun();
+    // enviar posición en online
+    if(mode==='online'){ const now=performance.now(); if(now-lastPosSent>55){ lastPosSent=now; const me=players[myIndex]; net.send({t:'pos',by:myIndex,x:me.x,y:me.y,face:me.face}); } }
+  }
+  setTimeout(tick,1000/60);
+}
+
+/* =========================  UI helpers  ========================= */
+function renderHand(){
+  const el=document.getElementById('hand'); el.innerHTML='';
+  hand.forEach((k,idx)=>{ const d=OBJ[k];
+    const c=document.createElement('button');
+    c.className='hand-card glass rounded-2xl p-3 w-24 text-center '+(selCard===idx?'sel':'');
+    c.innerHTML='<div class="text-2xl mb-1 '+(d.danger?'text-rose-400':'text-emerald-300')+'"><i class="fa-solid '+d.icon+'"></i></div><div class="text-xs font-bold">'+d.name+'</div><div class="text-[10px] '+(d.danger?'text-rose-400':'text-emerald-400')+'">'+(d.danger?'Trampa':'Ayuda')+'</div>';
+    c.onclick=()=>{ selCard=idx; renderHand(); };
+    el.appendChild(c);
+  });
+}
+function updateScoreboard(){
+  document.getElementById('bar1').style.width=Math.min(100,totals[0]/WIN_SCORE*100)+'%';
+  document.getElementById('bar2').style.width=Math.min(100,totals[1]/WIN_SCORE*100)+'%';
+  document.getElementById('sb-p1').textContent='J1 · '+totals[0];
+  document.getElementById('sb-p2').textContent='J2 · '+totals[1];
+}
+function banner(t){ document.getElementById('phase-banner').textContent=t; }
+let toastT; function toast(t){ const b=document.getElementById('phase-banner'); const old=b.textContent; b.textContent=t; clearTimeout(toastT); toastT=setTimeout(()=>{ if(phase==='place')b.textContent='🧩 Fase de colocar'; },1400); }
+
+/* =========================  RED (PeerJS)  ========================= */
+let peer=null, conn=null, lastPosSent=0;
+const net={ send(m){ if(conn&&conn.open) conn.send(m); } };
+function code(){ return Math.random().toString(36).slice(2,7).toUpperCase(); }
+function hookConn(c){
+  conn=c;
+  c.on('open',()=>{ startGameScreen(); if(isHost){ roundIdx=0; net.send({t:'start'}); startRound(); } });
+  c.on('data',onNet);
+  c.on('close',()=>toast('⚠️ Se cortó la conexión'));
+}
+function onNet(m){
+  switch(m.t){
+    case 'start': break;
+    case 'round': roundIdx=m.roundIdx; hand=m.hand; curMap=MAPS[roundIdx%MAPS.length]; placed=[]; placedThisRound=[false,false]; outcomes=[null,null]; resetPlayers(); document.getElementById('map-name').textContent=curMap.name; renderHand(); break;
+    case 'place': if(m.by!==myIndex){ placed.push(m.obj); placedThisRound[m.by]=true; finishPlacement(); } break;
+    case 'pos': if(m.by!==myIndex){ ghost.on=true; ghost.x=m.x; ghost.y=m.y; ghost.face=m.face; } break;
+    case 'outcome': if(m.by!==myIndex){ outcomes[m.by]={reached:m.reached,dead:m.dead,deadBy:m.deadBy,time:m.time}; if(phase==='run'||phase==='resolve'){ if(mode==='online'&&isHost) maybeScore(); } } break;
+    case 'score': totals=m.totals; lossStreak=m.lossStreak; updateScoreboard(); // el guest recalcula el texto desde outcomes
+        scoreRoundGuestView(); break;
+    case 'next': roundIdx=m.roundIdx; startRound(); break;
+  }
+}
+function sendMyOutcome(){ const me=players[myIndex]; const o=mkOutcome(me); outcomes[myIndex]=o; net.send({t:'outcome',by:myIndex,reached:o.reached,dead:o.dead,deadBy:o.deadBy,time:o.time}); }
+function scoreRoundGuestView(){ /* el guest ya recibió totals; muestra overlay simple */
+  const ov=document.getElementById('overlay'); const win=totals[0]>=WIN_SCORE||totals[1]>=WIN_SCORE;
+  ov.hidden=false; document.getElementById('ov-wait').hidden=true; document.getElementById('ov-btn').hidden=true;
+  if(win){ const w=totals[0]>totals[1]?0:1; document.getElementById('ov-icon').textContent='🏆'; document.getElementById('ov-title').innerHTML='¡VICTORIA de J'+(w+1)+'!'; document.getElementById('ov-body').innerHTML='J1 '+totals[0]+' — '+totals[1]+' J2'; const b=document.getElementById('ov-btn'); b.hidden=false; b.textContent='Jugar otra vez'; b.onclick=()=>location.reload(); }
+  else { document.getElementById('ov-icon').textContent='🏁'; document.getElementById('ov-title').textContent='Ronda '+(roundIdx+1); document.getElementById('ov-body').innerHTML='Marcador · J1 '+totals[0]+' — '+totals[1]+' J2'; document.getElementById('ov-wait').hidden=false; }
+}
+
+/* =========================  ARRANQUE / MENÚS  ========================= */
+function show(id){ ['screen-start','screen-net','screen-game'].forEach(s=>document.getElementById(s).hidden=(s!==id)); }
+function startGameScreen(){ show('screen-game'); document.getElementById('btn-restart').hidden=false; }
+document.getElementById('btn-restart').onclick=()=>location.reload();
+
+document.getElementById('m-local').onclick=()=>{ mode='local'; isHost=true; myIndex=0; show('screen-game'); document.getElementById('btn-restart').hidden=false; roundIdx=0; totals=[0,0]; lossStreak=[0,0]; startRound(); };
+
+document.getElementById('m-online-host').onclick=()=>{ mode='online'; isHost=true; myIndex=0; show('screen-net');
+  document.getElementById('net-title').textContent='Sala online (anfitrión)'; document.getElementById('net-host').hidden=false; document.getElementById('net-join').hidden=true;
+  const rc=code(); document.getElementById('roomcode').textContent=rc;
+  peer=new Peer('pkv-'+rc);
+  peer.on('open',()=>{});
+  peer.on('connection',c=>{ document.getElementById('host-status').textContent='¡Conectado! Empezando…'; hookConn(c); });
+  peer.on('error',e=>{ document.getElementById('host-status').textContent='Error: '+e.type; });
+};
+document.getElementById('copycode').onclick=()=>{ navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('roomcode').textContent); };
+
+document.getElementById('m-online-join').onclick=()=>{ mode='online'; isHost=false; myIndex=1; show('screen-net');
+  document.getElementById('net-title').textContent='Unirse a sala'; document.getElementById('net-host').hidden=true; document.getElementById('net-join').hidden=false; };
+document.getElementById('dojoin').onclick=()=>{ const rc=document.getElementById('joininput').value.trim().toUpperCase(); if(rc.length<4){document.getElementById('join-status').textContent='Código no válido';return;}
+  document.getElementById('join-status').textContent='Conectando…';
+  peer=new Peer();
+  peer.on('open',()=>{ const c=peer.connect('pkv-'+rc,{reliable:true}); hookConn(c); c.on('open',()=>document.getElementById('join-status').textContent='¡Conectado!'); });
+  peer.on('error',e=>{ document.getElementById('join-status').textContent='No se pudo: '+e.type; });
+};
+document.getElementById('net-back').onclick=()=>{ if(peer)peer.destroy(); show('screen-start'); };
+document.getElementById('sb-win').textContent=WIN_SCORE;
+
+/* iniciar bucles */
+render(); tick();
+</script>
+</body>
+</html>
