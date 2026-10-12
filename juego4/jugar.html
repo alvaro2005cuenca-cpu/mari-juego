@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>mk.js · 2 jugadores</title>
+    <script src="src/movement.js"></script>
+    <script src="src/mk.js"></script>
+    <link rel="stylesheet" href="styles/styles.css" />
+    <style>
+      body{background:#000;}
+      .topbar{display:flex;justify-content:space-between;align-items:center;max-width:620px;margin:10px auto;font-family:Verdana;}
+      .topbar a{color:#fde047;text-decoration:none;font-weight:bold;background:#222;padding:8px 12px;border-radius:8px;}
+      .controls{max-width:620px;margin:16px auto;color:#ddd;font-family:Verdana;font-size:12px;line-height:1.7;}
+      .controls b{color:#fff;}
+      .col{display:inline-block;vertical-align:top;width:48%;}
+    </style>
+</head>
+<body>
+    <div class="topbar">
+      <a href="../index.html">← Menú</a>
+      <span style="color:#fff;font-weight:bold;">mk.js · Sub-Zero vs Kano</span>
+      <a href="#" onclick="location.reload();return false;">↻ Reiniciar</a>
+    </div>
+
+    <div id="parent">
+        <div id="utils">
+            <div id="player1Name" class="playerName">Sub-Zero (J1)</div>
+            <div id="player1LifeBar" class="lifebar"><div class="life" id="player1Life"></div></div>
+            <div id="player2Name" class="playerName">Kano (J2)</div>
+            <div id="player2LifeBar" class="lifebar"><div class="life" id="player2Life"></div></div>
+        </div>
+        <div id="arena"></div>
+        <div id="loading"><span class="loadingLabel">Cargando…</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="col">
+        <b>🔵 Jugador 1 (Sub-Zero)</b><br>
+        Mover: <b>G</b> / <b>J</b> · Saltar: <b>Y</b> · Agacharse: <b>H</b><br>
+        Puño alto: <b>A</b> · Puño bajo: <b>S</b> · Patada baja: <b>D</b> · Patada alta: <b>F</b> · Bloquear: <b>Shift</b>
+      </div>
+      <div class="col">
+        <b>🔴 Jugador 2 (Kano)</b><br>
+        Mover: <b>←</b> / <b>→</b> · Saltar: <b>↑</b> · Agacharse: <b>↓</b><br>
+        Puño alto: <b>P</b> · Puño bajo: <b>[</b> · Patada baja: <b>]</b> · Patada alta: <b>\</b> · Bloquear: <b>Ctrl</b>
+      </div>
+    </div>
+
+    <script>
+        (function () {
+            function $(id){ return document.getElementById(id); }
+            function setLife(container, life){ container.style.width = life + '%'; }
+
+            var startGame = function () {
+                $('loading').style.visibility = 'hidden';
+                $('arena').style.visibility = 'visible';
+                $('utils').style.visibility = 'visible';
+            };
+
+            var options = {
+                arena: {
+                    container: document.getElementById('arena'),
+                    arena: mk.arenas.types.THRONE_ROOM
+                },
+                fighters: [{ name: 'Subzero' }, { name: 'Kano' }],
+                callbacks: {
+                    attack: function (f, o, l) {
+                        if (o.getName() === 'kano') {
+                            setLife($('player2Life'), o.getLife());
+                        } else {
+                            setLife($('player1Life'), o.getLife());
+                        }
+                    }
+                },
+                gameType: 'multiplayer'
+            };
+
+            mk.start(options).ready(function () {
+                startGame();
+            });
+        }());
+    </script>
+</body>
+</html>
