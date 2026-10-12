@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pixel Bros Co-op</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{color-scheme:dark;}*{box-sizing:border-box;}
+  body{font-family:'Nunito',sans-serif;background:linear-gradient(135deg,#1e1b2e,#2a1b3d 50%,#1a0f2e);color:#f3f4f6;margin:0;min-height:100vh;user-select:none;-webkit-user-select:none;touch-action:manipulation;overflow-x:hidden;}
+  h1,h2,h3{font-family:'Fredoka',sans-serif;}
+  .glass{background:rgba(30,27,46,.85);backdrop-filter:blur(12px);border:2px solid rgba(255,255,255,.12);}
+  .btn{transition:all .15s ease;cursor:pointer;}.btn:active{transform:scale(.95);}
+  canvas#game{width:100%;height:auto;display:block;border-radius:16px;background:#5c94fc;touch-action:none;image-rendering:pixelated;}
+  .touchbtn{width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;}
+  .touchbtn:active{background:rgba(255,255,255,.3);transform:scale(.92);}
+  [hidden]{display:none!important;}
+</style>
+</head>
+<body class="min-h-screen flex flex-col items-center px-3 py-4">
+
+<div class="w-full max-w-[1100px] flex items-center justify-between mb-3">
+  <a href="index.html" class="btn glass rounded-xl px-3 py-2 text-sm font-bold text-gray-200"><i class="fa-solid fa-arrow-left mr-1"></i>Menú</a>
+  <h1 class="text-lg sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-amber-300 to-emerald-400">Pixel Bros Co-op</h1>
+  <button id="btn-restart" class="btn glass rounded-xl px-3 py-2 text-sm font-bold text-gray-200" hidden><i class="fa-solid fa-rotate-right mr-1"></i>Reiniciar</button>
+</div>
+
+<!-- START -->
+<section id="screen-start" class="glass rounded-3xl p-6 sm:p-8 w-full max-w-lg text-center">
+  <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-red-500 to-amber-400 flex items-center justify-center text-3xl text-white mb-4">🍄</div>
+  <h2 class="text-2xl font-extrabold mb-1">Pixel Bros · Co-op 2 jugadores</h2>
+  <p class="text-gray-400 text-sm mb-5">Corred juntos, saltad sobre los enemigos, coged monedas y llegad los dos a la bandera.</p>
+  <div class="grid gap-3">
+    <button id="m-online-host" class="btn rounded-2xl p-4 bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-extrabold text-left flex items-center gap-3"><i class="fa-solid fa-crown text-xl"></i><div><div>Crear sala online</div><div class="text-xs opacity-80">Tú invitas · juegas desde tu dispositivo</div></div></button>
+    <button id="m-online-join" class="btn rounded-2xl p-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold text-left flex items-center gap-3"><i class="fa-solid fa-right-to-bracket text-xl"></i><div><div>Unirme a una sala</div><div class="text-xs opacity-80">Con el código que te pasen</div></div></button>
+    <button id="m-local" class="btn rounded-2xl p-4 bg-white/10 text-white font-extrabold text-left flex items-center gap-3"><i class="fa-solid fa-desktop text-xl"></i><div><div>Mismo PC (2 jugadores)</div><div class="text-xs opacity-70">J1: A/D + W · J2: ← → + ↑</div></div></button>
+  </div>
+</section>
+
+<!-- NET -->
+<section id="screen-net" class="glass rounded-3xl p-6 w-full max-w-lg text-center" hidden>
+  <h2 id="net-title" class="text-xl font-extrabold mb-4">Sala online</h2>
+  <div id="net-host" hidden>
+    <p class="text-gray-400 text-sm mb-2">Comparte este código con tu compañero:</p>
+    <div class="flex items-center gap-2 justify-center mb-3"><code id="roomcode" class="text-2xl font-extrabold tracking-widest bg-black/40 px-4 py-2 rounded-xl text-amber-300">----</code><button id="copycode" class="btn glass rounded-xl px-3 py-2 text-sm"><i class="fa-regular fa-copy"></i></button></div>
+    <p id="host-status" class="text-sky-300 text-sm animate-pulse">Esperando a tu compañero…</p>
+  </div>
+  <div id="net-join" hidden>
+    <p class="text-gray-400 text-sm mb-2">Escribe el código de la sala:</p>
+    <input id="joininput" maxlength="6" placeholder="CÓDIGO" class="w-full text-center text-2xl font-extrabold tracking-widest bg-black/40 px-4 py-3 rounded-xl text-emerald-300 uppercase mb-3 outline-none">
+    <button id="dojoin" class="btn w-full rounded-xl py-3 bg-emerald-500 text-white font-extrabold">Conectar</button>
+    <p id="join-status" class="text-emerald-300 text-sm mt-3"></p>
+  </div>
+  <button id="net-back" class="btn mt-4 text-gray-400 text-sm">← Volver</button>
+</section>
+
+<!-- GAME -->
+<section id="screen-game" class="w-full max-w-[1100px]" hidden>
+  <div class="glass rounded-2xl p-2 mb-2 flex items-center justify-between text-sm font-bold">
+    <span id="hud-p1" class="text-red-300">🔴 J1 · 🪙0</span>
+    <span id="hud-level" class="text-amber-200">Nivel 1</span>
+    <span id="hud-p2" class="text-emerald-300">🟢 J2 · 🪙0</span>
+  </div>
+  <canvas id="game" width="1280" height="640"></canvas>
+  <div id="touch-run" class="mt-3 flex items-center justify-between" hidden>
+    <div class="flex gap-3"><div class="touchbtn" data-k="left"><i class="fa-solid fa-chevron-left"></i></div><div class="touchbtn" data-k="right"><i class="fa-solid fa-chevron-right"></i></div></div>
+    <div class="touchbtn" data-k="jump" style="width:78px;height:78px;font-size:28px;background:rgba(251,191,36,.3);border-color:rgba(251,191,36,.6)"><i class="fa-solid fa-angles-up"></i></div>
+  </div>
+</section>
+
+<!-- OVERLAY -->
+<div id="overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50" hidden>
+  <div class="glass rounded-3xl p-6 w-full max-w-md text-center">
+    <div id="ov-icon" class="text-5xl mb-2">🏁</div>
+    <h2 id="ov-title" class="text-2xl font-extrabold mb-2">¡Nivel completado!</h2>
+    <div id="ov-body" class="text-sm text-gray-300 mb-5"></div>
+    <button id="ov-btn" class="btn w-full rounded-xl py-3 bg-gradient-to-r from-red-500 to-amber-400 text-white font-extrabold">Siguiente</button>
+    <p id="ov-wait" class="text-gray-400 text-sm mt-3" hidden>Esperando al otro jugador…</p>
+  </div>
+</div>
+
+<script>
+/* ===================== PIXEL BROS CO-OP ===================== */
+const VIEW_W=1280, VIEW_H=640;
+const GRAV=0.8, MOVE=0.9, MAXVX=5.4, FRICT=0.82, JUMP=15.5, ENEMY_V=1.3;
+const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+
+let mode=null, myIndex=0, isHost=true;
+let levelIdx=0, level=null, players=[], enemies=[], coins=[], phase='idle';
+let cam={x:0}, reached=[false,false], coinScore=[0,0], ghost={x:0,y:0,vx:0,face:1,on:false,anim:0};
+
+/* ---------- Niveles (rect-based, world ancho) ---------- */
+function L(name, worldW, ground, plats, pipes, coinsA, enA, flagX){ return {name,worldW,ground,plats,pipes,coins:coinsA,enemies:enA,flagX}; }
+const GROUND_Y=560;
+const LEVELS=[
+  L('Mundo 1-1', 4200,
+    [ {x:0,w:1200},{x:1320,w:900},{x:2340,w:1860} ],              // tramos de suelo (huecos entre ellos)
+    [ {x:600,y:430,w:140},{x:820,y:340,w:140},{x:1500,y:430,w:160},{x:1800,y:330,w:160},{x:2500,y:420,w:160},{x:2800,y:330,w:200},{x:3300,y:430,w:160} ],
+    [ {x:1050,h:80},{x:2150,h:120},{x:3600,h:100} ],
+    [ 640,680,860,900,1540,1580,1840,2540,2840,2880,3340,3380,3700,3740 ].map(x=>({x,y:GROUND_Y-120})),
+    [ {x:900},{x:1600},{x:1900},{x:2600},{x:2900},{x:3400},{x:3750} ],
+    4050),
+  L('Mundo 1-2', 4600,
+    [ {x:0,w:800},{x:950,w:700},{x:1800,w:700},{x:2650,w:1950} ],
+    [ {x:500,y:420,w:140},{x:1000,y:360,w:140},{x:1300,y:300,w:140},{x:1900,y:420,w:160},{x:2200,y:330,w:160},{x:2900,y:420,w:160},{x:3200,y:330,w:160},{x:3600,y:420,w:180} ],
+    [ {x:1750,h:120},{x:3900,h:100} ],
+    [ 520,560,1020,1320,1360,1950,2250,2950,3250,3650,3700,4000,4050 ].map(x=>({x,y:GROUND_Y-120})),
+    [ {x:600},{x:1100},{x:2000},{x:2300},{x:3000},{x:3300},{x:3700},{x:4100} ],
+    4450),
+];
+
+/* ---------- Construcción de colisiones del nivel ---------- */
+function groundSolids(){ const s=[]; for(const g of level.ground) s.push({x:g.x,y:GROUND_Y,w:g.w,h:VIEW_H-GROUND_Y+40}); for(const p of level.plats) s.push({x:p.x,y:p.y,w:p.w,h:18}); for(const p of level.pipes) s.push({x:p.x,y:GROUND_Y-p.h,w:70,h:p.h,pipe:true}); return s; }
+function overlap(a,b){ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y; }
+function onGroundAt(x,y){ for(const s of groundSolids()){ if(x>s.x&&x<s.x+s.w&&Math.abs(y-s.y)<6) return true; } return false; }
+
+/* ---------- Jugador ---------- */
+function makePlayer(i){ return {i,x:60+i*50,y:GROUND_Y-46,vx:0,vy:0,w:30,h:44,onGround:false,face:1,anim:0,hurt:0,checkpoint:60+i*50}; }
+function resetPlayers(){ players=[makePlayer(0),makePlayer(1)]; }
+
+function stepPlayer(p,input){
+  p.anim++; if(p.hurt>0)p.hurt--;
+  if(input.left){p.vx-=MOVE;p.face=-1;} if(input.right){p.vx+=MOVE;p.face=1;}
+  if(!input.left&&!input.right)p.vx*=FRICT;
+  p.vx=Math.max(-MAXVX,Math.min(MAXVX,p.vx));
+  if(input.jump&&p.onGround){p.vy=-JUMP;p.onGround=false;}
+  p.vy+=GRAV; if(p.vy>19)p.vy=19;
+  const sol=groundSolids();
+  p.x+=p.vx; for(const s of sol){ if(overlap({x:p.x,y:p.y,w:p.w,h:p.h},s)){ if(p.vx>0)p.x=s.x-p.w; else if(p.vx<0)p.x=s.x+s.w; p.vx=0; } }
+  p.onGround=false; p.y+=p.vy;
+  for(const s of sol){ if(overlap({x:p.x,y:p.y,w:p.w,h:p.h},s)){ if(p.vy>0){p.y=s.y-p.h;p.onGround=true;p.vy=0;} else if(p.vy<0){p.y=s.y+s.h;p.vy=0;} } }
+  if(p.x<0)p.x=0; if(p.x+p.w>level.worldW)p.x=level.worldW-p.w;
+  // checkpoint
+  if(p.onGround && p.x>p.checkpoint+10) p.checkpoint=p.x;
+  // caída al vacío -> respawn
+  if(p.y>VIEW_H+80){ respawn(p); }
+  // monedas
+  for(const c of coins){ if(!c.got && overlap({x:p.x,y:p.y,w:p.w,h:p.h},{x:c.x-14,y:c.y-14,w:28,h:28})){ collectCoin(p.i,c); } }
+  // meta
+  if(p.x+p.w>level.flagX){ if(!reached[p.i]){ reached[p.i]=true; if(mode==='online')net.send({t:'reach',by:p.i}); checkWin(); } }
+}
+function respawn(p){ p.x=Math.max(0,p.checkpoint-20); p.y=GROUND_Y-120; p.vx=0; p.vy=0; p.hurt=90; }
+
+/* ---------- Enemigos (goombas) — simulados por host/local ---------- */
+function spawnEnemies(){ enemies=level.enemies.map((e,id)=>({id,x:e.x,y:GROUND_Y-30,vx:-ENEMY_V,w:30,h:30,alive:true})); }
+function stepEnemies(){
+  const sol=groundSolids();
+  for(const e of enemies){ if(!e.alive)continue;
+    e.vx = e.vx||(-ENEMY_V);
+    e.x+=e.vx;
+    // pared / borde
+    let wall=false; for(const s of sol){ if(overlap({x:e.x,y:e.y,w:e.w,h:e.h},s)&&s.pipe){ if(e.vx>0)e.x=s.x-e.w; else e.x=s.x+s.w; wall=true; } }
+    const aheadX=e.vx>0?e.x+e.w+2:e.x-2;
+    if(!onGroundAt(aheadX,e.y+e.h)||wall||e.x<=0||e.x+e.w>=level.worldW) e.vx*=-1;
+    // gravedad simple
+    let grounded=false; e.y+=3; for(const s of sol){ if(overlap({x:e.x,y:e.y,w:e.w,h:e.h},s)){ e.y=s.y-e.h; grounded=true; } } if(!grounded)e.y+=2;
+    if(e.y>VIEW_H+60)e.alive=false;
+  }
+}
+function playerEnemy(p){
+  for(const e of enemies){ if(!e.alive)continue;
+    if(overlap({x:p.x,y:p.y,w:p.w,h:p.h},{x:e.x,y:e.y,w:e.w,h:e.h})){
+      if(p.vy>0 && p.y+p.h-e.y<20){ e.alive=false; p.vy=-10; if(mode==='online')net.send({t:'stomp',id:e.id}); }
+      else if(p.hurt<=0){ p.hurt=100; respawn(p); if(mode==='online')net.send({t:'hit',by:p.i}); }
+    }
+  }
+}
+function collectCoin(pi,c){ c.got=true; coinScore[pi]++; updateHUD(); if(mode==='online')net.send({t:'coin',id:c.id,by:pi}); }
+
+/* ---------- Win ---------- */
+function checkWin(){ const need = mode==='online'?(reached[0]&&reached[1]):(players[0].x+players[0].w>level.flagX&&players[1].x+players[1].w>level.flagX);
+  if(need){ if(mode==='online'){ if(isHost&&reached[0]&&reached[1]) net.send({t:'win'}); if(reached[0]&&reached[1]) winLevel(); } else winLevel(); } }
+function winLevel(){ if(phase==='win')return; phase='win'; document.getElementById('touch-run').hidden=true;
+  const ov=document.getElementById('overlay'); ov.hidden=false; const last=levelIdx>=LEVELS.length-1;
+  document.getElementById('ov-icon').textContent=last?'🏆':'🚩';
+  document.getElementById('ov-title').textContent=last?'¡Habéis terminado!':'¡Nivel completado!';
+  document.getElementById('ov-body').innerHTML='Monedas · 🔴 '+coinScore[0]+'  ·  🟢 '+coinScore[1];
+  const b=document.getElementById('ov-btn'),w=document.getElementById('ov-wait');
+  if(last){ b.textContent='Jugar otra vez'; b.onclick=()=>location.reload(); b.hidden=false; w.hidden=true; }
+  else if(mode==='online'&&!isHost){ b.hidden=true; w.hidden=false; }
+  else { b.hidden=false; w.hidden=true; b.textContent='Siguiente nivel'; b.onclick=()=>{ levelIdx++; if(mode==='online')net.send({t:'nextlvl',levelIdx}); startLevel(); }; }
+}
+
+/* ---------- Dibujo ---------- */
+function roundRect(x,y,w,h,r){ ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath(); }
+function drawBG(){ ctx.fillStyle='#5c94fc'; ctx.fillRect(0,0,VIEW_W,VIEW_H);
+  ctx.fillStyle='rgba(255,255,255,.85)'; for(let i=0;i<6;i++){ const cx=((i*520 - cam.x*0.4)%(VIEW_W+400))-200, cy=90+((i*53)%120); ctx.beginPath();ctx.arc(cx,cy,26,0,7);ctx.arc(cx+26,cy+8,22,0,7);ctx.arc(cx-26,cy+8,20,0,7);ctx.fill(); }
+  ctx.fillStyle='rgba(60,160,60,.6)'; for(let i=0;i<8;i++){ const hx=((i*360 - cam.x*0.6)%(VIEW_W+400))-200; ctx.beginPath();ctx.moveTo(hx,GROUND_Y);ctx.quadraticCurveTo(hx+120,GROUND_Y-150,hx+240,GROUND_Y);ctx.fill(); } }
+function drawWorld(){
+  ctx.save(); ctx.translate(-cam.x,0);
+  // suelo
+  for(const g of level.ground){ ctx.fillStyle='#c84c0c'; ctx.fillRect(g.x,GROUND_Y,g.w,VIEW_H-GROUND_Y+40); ctx.fillStyle='#e07b3c'; ctx.fillRect(g.x,GROUND_Y,g.w,16); ctx.fillStyle='rgba(0,0,0,.12)'; for(let bx=g.x;bx<g.x+g.w;bx+=40){ctx.fillRect(bx,GROUND_Y+16,2,VIEW_H-GROUND_Y);} }
+  // plataformas
+  for(const p of level.plats){ ctx.fillStyle='#b5651d'; roundRect(p.x,p.y,p.w,18,4);ctx.fill(); ctx.fillStyle='#8a4513'; for(let bx=p.x;bx<p.x+p.w;bx+=28)ctx.fillRect(bx,p.y,2,18); }
+  // tuberías
+  for(const p of level.pipes){ const py=GROUND_Y-p.h; ctx.fillStyle='#2aa233'; roundRect(p.x-4,py,78,22,5);ctx.fill(); ctx.fillStyle='#38c848'; ctx.fillRect(p.x+4,py+22,62,p.h); ctx.fillStyle='rgba(255,255,255,.25)';ctx.fillRect(p.x+10,py+22,8,p.h); }
+  // monedas
+  for(const c of coins){ if(c.got)continue; const bob=Math.sin(performance.now()/200+c.x)*3; ctx.fillStyle='#f7d51d'; ctx.beginPath();ctx.ellipse(c.x,c.y+bob,10,13,0,0,7);ctx.fill(); ctx.fillStyle='#d9a800';ctx.fillRect(c.x-2,c.y+bob-6,4,12); }
+  // bandera / meta
+  ctx.fillStyle='#eaeaea'; ctx.fillRect(level.flagX,GROUND_Y-260,6,260); ctx.fillStyle='#22c55e'; ctx.beginPath();ctx.moveTo(level.flagX+6,GROUND_Y-260);ctx.lineTo(level.flagX+54,GROUND_Y-245);ctx.lineTo(level.flagX+6,GROUND_Y-230);ctx.fill(); ctx.fillStyle='#000'; ctx.fillRect(level.flagX-2,GROUND_Y-6,10,6);
+  // enemigos
+  for(const e of enemies){ if(!e.alive)continue; drawGoomba(e.x,e.y,e.vx<0?-1:1); }
+  // jugadores
+  if(mode==='online'){ if(ghost.on) drawBro({x:ghost.x,y:ghost.y,w:30,h:44,face:ghost.face,anim:ghost.anim,vx:ghost.vx,hurt:0},1-myIndex); drawBro(players[myIndex],myIndex); }
+  else { drawBro(players[0],0); drawBro(players[1],1); }
+  ctx.restore();
+}
+function drawGoomba(x,y,f){ ctx.fillStyle='#7a4a1e'; roundRect(x,y+6,30,24,8);ctx.fill(); ctx.fillStyle='#caa472';ctx.fillRect(x+4,y+22,22,8); ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x+10,y+15,4,0,7);ctx.arc(x+20,y+15,4,0,7);ctx.fill(); ctx.fillStyle='#000';ctx.beginPath();ctx.arc(x+10+f,y+15,2,0,7);ctx.arc(x+20+f,y+15,2,0,7);ctx.fill(); ctx.fillStyle='#000';ctx.fillRect(x+3,y+28,8,4);ctx.fillRect(x+19,y+28,8,4); }
+function drawBro(p,i){ const col=i===0?'#e23b3b':'#2ea84f', cap=i===0?'#b81f1f':'#1e7d38';
+  const walk=p.onGround&&Math.abs(p.vx)>0.5, legs=walk?Math.sin(p.anim/4)*4:0; if(p.hurt>0&&Math.floor(p.hurt/6)%2)ctx.globalAlpha=0.4;
+  ctx.fillStyle='#f0b890'; ctx.fillRect(p.x+6,p.y+12,18,12);                 // cara
+  ctx.fillStyle=cap; ctx.fillRect(p.x+3,p.y+4,24,10); ctx.fillRect(p.x+(p.face>0?18:3),p.y+8,10,5); // gorra
+  ctx.fillStyle='#000'; ctx.fillRect(p.x+(p.face>0?17:9),p.y+15,3,3);       // ojo
+  ctx.fillStyle=col; ctx.fillRect(p.x+4,p.y+24,22,14);                      // cuerpo
+  ctx.fillStyle='#2a3b8f'; ctx.fillRect(p.x+4,p.y+36,22,8);                 // peto
+  ctx.fillStyle='#000'; ctx.fillRect(p.x+5,p.y+44+legs,8,4); ctx.fillRect(p.x+17,p.y+44-legs,8,4); // pies
+  ctx.globalAlpha=1;
+}
+function updateCam(){ const target = mode==='online'?players[myIndex].x : (players[0].x+players[1].x)/2;
+  let want=target+15-VIEW_W/2; cam.x += (want-cam.x)*0.12; cam.x=Math.max(0,Math.min(level.worldW-VIEW_W,cam.x)); }
+function render(){ if(!level){requestAnimationFrame(render);return;} updateCam(); drawBG(); drawWorld(); requestAnimationFrame(render); }
+
+/* ---------- Input ---------- */
+const keys={};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true; if([' ','arrowup','arrowdown'].includes(e.key.toLowerCase()))e.preventDefault();});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+const touch={left:false,right:false,jump:false};
+document.querySelectorAll('#touch-run .touchbtn').forEach(b=>{const k=b.dataset.k,on=e=>{e.preventDefault();touch[k]=true;},off=e=>{e.preventDefault();touch[k]=false;};b.addEventListener('touchstart',on);b.addEventListener('touchend',off);b.addEventListener('touchcancel',off);b.addEventListener('mousedown',on);b.addEventListener('mouseup',off);b.addEventListener('mouseleave',off);});
+function inputFor(i){ if(mode==='online'){ if(i!==myIndex)return{}; return {left:keys['arrowleft']||keys['a']||touch.left,right:keys['arrowright']||keys['d']||touch.right,jump:keys['arrowup']||keys['w']||keys[' ']||touch.jump}; }
+  if(i===0)return{left:keys['a'],right:keys['d'],jump:keys['w']}; return {left:keys['arrowleft'],right:keys['arrowright'],jump:keys['arrowup']}; }
+
+/* ---------- Bucle ---------- */
+let lastPos=0;
+function tick(){
+  if(phase==='play'){
+    if(mode==='online'){ const me=players[myIndex]; stepPlayer(me,inputFor(myIndex)); if(isHost)stepEnemies(); playerEnemy(me);
+      const now=performance.now(); if(now-lastPos>50){ lastPos=now; net.send({t:'pos',by:myIndex,x:me.x,y:me.y,vx:me.vx,face:me.face,anim:me.anim}); if(isHost)net.send({t:'world',en:enemies.map(e=>({id:e.id,x:e.x,y:e.y,vx:e.vx,alive:e.alive}))}); }
+    } else { stepPlayer(players[0],inputFor(0)); stepPlayer(players[1],inputFor(1)); stepEnemies(); playerEnemy(players[0]); playerEnemy(players[1]); }
+  }
+  setTimeout(tick,1000/60);
+}
+
+/* ---------- UI ---------- */
+function updateHUD(){ document.getElementById('hud-p1').innerHTML='🔴 J1 · 🪙'+coinScore[0]; document.getElementById('hud-p2').innerHTML='🟢 J2 · 🪙'+coinScore[1]; document.getElementById('hud-level').textContent=level?level.name:'Nivel'; }
+
+/* ---------- Partida ---------- */
+function startMatch(){ levelIdx=0; coinScore=[0,0]; show('screen-game'); document.getElementById('btn-restart').hidden=false; startLevel(); }
+function startLevel(){ level=LEVELS[levelIdx]; spawnEnemies(); coins=level.coins.map((c,id)=>({id,x:c.x,y:c.y,got:false})); resetPlayers(); reached=[false,false]; cam.x=0; ghost.on=false; phase='play';
+  document.getElementById('overlay').hidden=true; document.getElementById('touch-run').hidden=false; updateHUD(); }
+
+/* ---------- Red ---------- */
+let peer=null,conn=null;
+const net={ send(m){ if(conn&&conn.open)conn.send(m); } };
+function code(){ return Math.random().toString(36).slice(2,7).toUpperCase(); }
+function hookConn(c){ conn=c; c.on('open',()=>{ show('screen-game'); document.getElementById('btn-restart').hidden=false; if(isHost){ net.send({t:'start'}); startMatch(); } }); c.on('data',onNet); c.on('close',()=>{}); }
+function onNet(m){ switch(m.t){
+  case 'start': break;
+  case 'pos': if(m.by!==myIndex){ ghost.on=true;ghost.x=m.x;ghost.y=m.y;ghost.vx=m.vx;ghost.face=m.face;ghost.anim=m.anim; } break;
+  case 'world': if(!isHost){ for(const es of m.en){ const e=enemies.find(x=>x.id===es.id); if(e){e.x=es.x;e.y=es.y;e.vx=es.vx;e.alive=es.alive;} } } break;
+  case 'stomp': { const e=enemies.find(x=>x.id===m.id); if(e)e.alive=false; } break;
+  case 'coin': { const c=coins.find(x=>x.id===m.id); if(c&&!c.got){c.got=true; if(m.by!=null){coinScore[m.by]++;updateHUD();}} } break;
+  case 'reach': reached[m.by]=true; checkWin(); break;
+  case 'hit': break;
+  case 'win': winLevel(); break;
+  case 'nextlvl': levelIdx=m.levelIdx; startLevel(); break;
+} }
+function sendStartMaybe(){}
+
+/* ---------- Menús ---------- */
+function show(id){ ['screen-start','screen-net','screen-game'].forEach(s=>document.getElementById(s).hidden=(s!==id)); }
+document.getElementById('btn-restart').onclick=()=>location.reload();
+document.getElementById('m-local').onclick=()=>{ mode='local';isHost=true;myIndex=0; startMatch(); };
+document.getElementById('m-online-host').onclick=()=>{ mode='online';isHost=true;myIndex=0; show('screen-net'); document.getElementById('net-title').textContent='Sala online (anfitrión)';document.getElementById('net-host').hidden=false;document.getElementById('net-join').hidden=true; const rc=code();document.getElementById('roomcode').textContent=rc; peer=new Peer('pxb-'+rc); peer.on('connection',c=>{document.getElementById('host-status').textContent='¡Conectado! Empezando…';hookConn(c);}); peer.on('error',e=>document.getElementById('host-status').textContent='Error: '+e.type); };
+document.getElementById('copycode').onclick=()=>{ navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('roomcode').textContent); };
+document.getElementById('m-online-join').onclick=()=>{ mode='online';isHost=false;myIndex=1; show('screen-net'); document.getElementById('net-title').textContent='Unirse a sala';document.getElementById('net-host').hidden=true;document.getElementById('net-join').hidden=false; };
+document.getElementById('dojoin').onclick=()=>{ const rc=document.getElementById('joininput').value.trim().toUpperCase(); if(rc.length<4){document.getElementById('join-status').textContent='Código no válido';return;} document.getElementById('join-status').textContent='Conectando…'; peer=new Peer(); peer.on('open',()=>{ const c=peer.connect('pxb-'+rc,{reliable:true}); hookConn(c); c.on('open',()=>document.getElementById('join-status').textContent='¡Conectado!'); }); peer.on('error',e=>document.getElementById('join-status').textContent='No se pudo: '+e.type); };
+document.getElementById('net-back').onclick=()=>{ if(peer)peer.destroy(); show('screen-start'); };
+
+render(); tick();
+</script>
+</body>
+</html>
